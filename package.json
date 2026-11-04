@@ -42,6 +42,13 @@
         }
       ]
     },
+    "keybindings": [
+      {
+        "command": "openCodeSnap.start",
+        "key": "ctrl+alt+s",
+        "mac": "cmd+alt+s"
+      }
+    ],
     "configuration": {
       "type": "object",
       "title": "Open Code Snap",
