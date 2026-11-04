@@ -149,7 +149,6 @@ body {
   outline: 1px dashed currentColor;
   outline-offset: 2px;
   border-radius: 2px;
-  opacity: 0.85;
 }
 
 .win-buttons {

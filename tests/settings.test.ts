@@ -67,6 +67,16 @@ describe('validateSettingUpdate', () => {
     expect(validateSettingUpdate('fontFamily', 'x'.repeat(1000)).ok).toBe(false)
   })
 
+  it('validates new M1 keys at value level', () => {
+    expect(validateSettingUpdate('lineNumbers', 'real').ok).toBe(true)
+    expect(validateSettingUpdate('lineNumbers', 'absolute').ok).toBe(false)
+    expect(validateSettingUpdate('tabSize', 0).ok).toBe(true)
+    expect(validateSettingUpdate('tabSize', 17).ok).toBe(false)
+    expect(validateSettingUpdate('shadowOffsetX', -128).ok).toBe(true)
+    expect(validateSettingUpdate('shadowOffsetX', 129).ok).toBe(false)
+    expect(validateSettingUpdate('languageOverride', 'vue').ok).toBe(true)
+  })
+
   it('gives a reason mentioning the key on failure', () => {
     const result = validateSettingUpdate('padding', -1)
     expect(result.ok).toBe(false)

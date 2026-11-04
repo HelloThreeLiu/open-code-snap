@@ -59,22 +59,34 @@ describe('lineNumbers enum + legacy migration (PRD F2.3)', () => {
     expect(s.lineNumbers).toBe('real')
   })
 
+  it('diagonal case: explicit relative + legacy off stays relative', () => {
+    const s = readStyleFromConfig(
+      makeConfig({ lineNumbers: 'relative', showLineNumbers: false }, ['lineNumbers', 'showLineNumbers']),
+      {}
+    )
+    expect(s.lineNumbers).toBe('relative')
+  })
+
+  it('explicit null is treated as unset, legacy keys still migrate', () => {
+    const s = readStyleFromConfig(
+      makeConfig({ lineNumbers: null, showLineNumbers: false }, ['lineNumbers', 'showLineNumbers']),
+      {}
+    )
+    expect(s.lineNumbers).toBe('off')
+  })
+
   it('unset legacy keys yield the relative default (no regression)', () => {
     expect(readStyleFromConfig(makeConfig(), {}).lineNumbers).toBe('relative')
   })
 })
 
 describe('new M1 style knobs', () => {
-  it('reads shadowOffsetX / tabSize / languageOverride', () => {
+  it('reads shadowOffsetX / languageOverride', () => {
     const s = readStyleFromConfig(
-      makeConfig(
-        { shadowOffsetX: -20, tabSize: 8, languageOverride: 'python' },
-        ['shadowOffsetX', 'tabSize', 'languageOverride']
-      ),
+      makeConfig({ shadowOffsetX: -20, languageOverride: 'python' }, ['shadowOffsetX', 'languageOverride']),
       {}
     )
     expect(s.shadowOffsetX).toBe(-20)
-    expect(s.tabSize).toBe(8)
     expect(s.languageOverride).toBe('python')
   })
 })

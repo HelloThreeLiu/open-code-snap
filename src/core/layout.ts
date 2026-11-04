@@ -78,3 +78,13 @@ export function layoutCode(code: string, options: LayoutOptions): LayoutedCode {
 export function lineNumberFor(line: LayoutedLine, mode: LineNumbersMode): number {
   return mode === 'real' ? line.realNo : line.displayNo
 }
+
+/**
+ * Largest line number the gutter must fit. In real mode this is the LAST
+ * line's realNo (not startLine + count: leading blank lines are trimmed
+ * but keep their document offset), so the column never runs a digit short.
+ */
+export function maxLineNumber(lines: LayoutedLine[], mode: LineNumbersMode): number {
+  if (lines.length === 0) return 0
+  return mode === 'real' ? lines[lines.length - 1].realNo : lines.length
+}

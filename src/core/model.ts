@@ -19,7 +19,6 @@ export const DEFAULT_STYLE: StyleConfig = {
   fontSize: 14,
   lineHeight: 1.6,
   ligatures: true,
-  tabSize: 0,
   exportScale: 2,
   exportEngine: 'canvas',
 }
@@ -39,11 +38,13 @@ export interface ConfigLike {
 }
 
 function isExplicitlySet(inspect: ConfigInspect<unknown> | undefined): boolean {
+  // `!= null` treats an explicit JSON null (a common manual "unset") as unset
+  // too, so legacy keys still migrate (review N-1).
   return (
     !!inspect &&
-    (inspect.globalValue !== undefined ||
-      inspect.workspaceValue !== undefined ||
-      inspect.workspaceFolderValue !== undefined)
+    (inspect.globalValue != null ||
+      inspect.workspaceValue != null ||
+      inspect.workspaceFolderValue != null)
   )
 }
 
@@ -87,7 +88,6 @@ export function readStyleFromConfig(
   s.fontSize = get('fontSize', DEFAULT_STYLE.fontSize)
   s.lineHeight = get('lineHeight', DEFAULT_STYLE.lineHeight)
   s.ligatures = get('ligatures', true)
-  s.tabSize = get('tabSize', DEFAULT_STYLE.tabSize)
   s.exportScale = get('exportScale', DEFAULT_STYLE.exportScale)
   s.exportEngine = get('exportEngine', DEFAULT_STYLE.exportEngine)
   // Follow editor font when not overridden.

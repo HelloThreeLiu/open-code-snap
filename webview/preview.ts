@@ -17,7 +17,9 @@ export function renderPreview(
     windowTitle: string
     /** Measured gutter width, shared with the canvas exporter. */
     gutterWidth: number
-    /** Session-level window-title edit (PRD F2.2). */
+    /** Live title sync while typing (no rerender; keeps exports fresh). */
+    onTitleInput?: (text: string) => void
+    /** Title committed (Enter/blur) — triggers a rerender. */
     onTitleChange?: (text: string) => void
   }
 ): HTMLElement {
@@ -43,7 +45,9 @@ export function renderPreview(
   win.style.fontVariantLigatures = style.ligatures ? 'normal' : 'none'
 
   if (titleBarHeight(style) > 0) {
-    win.appendChild(buildTitleBar(style, windowTitle, highlight.colors.fg, input.onTitleChange))
+    win.appendChild(
+      buildTitleBar(style, windowTitle, highlight.colors.fg, input.onTitleInput, input.onTitleChange)
+    )
   }
 
   const code = document.createElement('div')
@@ -69,6 +73,7 @@ function buildTitleBar(
   style: StyleConfig,
   windowTitle: string,
   fg: string,
+  onTitleInput?: (text: string) => void,
   onTitleChange?: (text: string) => void
 ): HTMLElement {
   const bar = document.createElement('div')
@@ -95,6 +100,9 @@ function buildTitleBar(
     title.textContent = windowTitle
     if (onTitleChange) {
       // In-place title editing (PRD F2.2): click to edit, Enter/blur commits.
+      // `input` syncs every keystroke so a host push mid-edit rebuilds the
+      // DOM with the typed text instead of dropping it (review I-3), and an
+      // immediate export after typing sees a fresh cache.windowTitle (I-2).
       try {
         title.contentEditable = 'plaintext-only'
       } catch {
@@ -102,6 +110,9 @@ function buildTitleBar(
       }
       title.classList.add('editable')
       title.spellcheck = false
+      title.addEventListener('input', () => {
+        onTitleInput?.(title.textContent ?? '')
+      })
       title.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault()

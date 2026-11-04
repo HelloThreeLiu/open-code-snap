@@ -13,6 +13,8 @@ export interface SnippetRequest {
   startLine: number
   /** Suggested window title (usually the file name). */
   windowTitle: string
+  /** Stable document identity (document uri) — survives same-basename files. */
+  documentKey: string
   /** Editor font settings to follow. */
   font: {
     /** Raw CSS font-family list from editor.fontFamily. */
@@ -48,8 +50,6 @@ export interface StyleConfig {
   fontSize: number
   lineHeight: number
   ligatures: boolean
-  /** Tab width for export; 0 = follow the document's tab size. */
-  tabSize: number
   exportScale: 1 | 2 | 3
   exportEngine: 'canvas' | 'dom'
 }

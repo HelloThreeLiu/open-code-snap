@@ -186,20 +186,26 @@ function snippetFrom(editor: vscode.TextEditor): SnippetRequest | null {
   if (!selection || selection.isEmpty) return null
   const document = editor.document
   const fontLigatures = vscode.workspace.getConfiguration('editor').get<boolean>('fontLigatures', false)
-  // openCodeSnap.tabSize > 0 overrides the document's tab size (PRD F2.5).
-  const tabSizeOverride = vscode.workspace.getConfiguration('openCodeSnap').get<number>('tabSize', 0)
   return {
     code: document.getText(selection),
     languageId: document.languageId,
     startLine: selection.start.line,
     windowTitle: path.basename(document.fileName),
+    documentKey: document.uri.toString(),
     font: {
       family: vscode.workspace.getConfiguration('editor').get<string>('fontFamily', 'Consolas, monospace'),
       ligatures: fontLigatures === true,
-      // tabSize option can be a string in rare configs; normalize it.
-      tabSize: tabSizeOverride > 0 ? tabSizeOverride : Number(editor.options.tabSize ?? 4) || 4,
+      tabSize: effectiveTabSize(editor),
     },
   }
+}
+
+/** openCodeSnap.tabSize > 0 overrides the document's tab size (PRD F2.5). */
+function effectiveTabSize(editor: vscode.TextEditor | undefined): number {
+  const override = vscode.workspace.getConfiguration('openCodeSnap').get<number>('tabSize', 0)
+  if (override > 0) return override
+  if (editor) return Number(editor.options.tabSize ?? 4) || 4 // option can be a string in rare configs
+  return 4
 }
 
 function currentStyle(): ReturnType<typeof readStyleFromConfig> {
@@ -232,7 +238,14 @@ function pushCurrentState(): void {
   const style = currentStyle()
   const themeContext = { editorThemeName: editorThemeName() }
   if (lastSnippet) {
-    post({ type: 'update', request: lastSnippet, style, themeContext })
+    // Re-resolve tabSize so an open panel picks up a tabSize setting change
+    // without waiting for the next selection (review N-3).
+    const tabSize = effectiveTabSize(sourceEditor)
+    const request =
+      lastSnippet.font.tabSize === tabSize
+        ? lastSnippet
+        : { ...lastSnippet, font: { ...lastSnippet.font, tabSize } }
+    post({ type: 'update', request, themeContext, style })
   } else {
     const editor = vscode.window.activeTextEditor
     const snippet = editor ? snippetFrom(editor) : null

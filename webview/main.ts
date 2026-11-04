@@ -1,7 +1,7 @@
 import './style.css'
 import type { HostMessage, SnippetRequest, StyleConfig, ThemeContext, WebviewMessage } from '../src/core/protocol'
 import { DEFAULT_STYLE } from '../src/core/model'
-import { layoutCode, type LayoutedCode } from '../src/core/layout'
+import { layoutCode, maxLineNumber, type LayoutedCode } from '../src/core/layout'
 import { highlightCode, type HighlightResult } from '../src/core/highlight'
 import { resolveTheme, CURATED_THEMES } from '../src/core/theme-map'
 import { CURATED_LANGUAGES } from '../src/core/languages'
@@ -21,8 +21,8 @@ interface State {
   themeContext: ThemeContext
   /** Session-level window-title override; reset when the source file changes. */
   titleOverride: string | null
-  /** Base title of the current request, to detect file switches. */
-  lastBaseTitle: string
+  /** documentKey of the current request, to detect file switches. */
+  lastDocKey: string
 }
 
 const state: State = {
@@ -30,7 +30,7 @@ const state: State = {
   style: { ...DEFAULT_STYLE },
   themeContext: { editorThemeName: '' },
   titleOverride: null,
-  lastBaseTitle: '',
+  lastDocKey: '',
 }
 
 interface RenderCache {
@@ -235,11 +235,7 @@ async function rerender(): Promise<void> {
   const highlight = await highlightCode(layout, languageId, themeId)
   if (seq !== renderSeq) return // a newer update arrived meanwhile
 
-  const maxNo = layout.lines.length
-    ? style.lineNumbers === 'real' && state.request
-      ? state.request.startLine + layout.lines.length
-      : layout.lines.length
-    : 0
+  const maxNo = maxLineNumber(layout.lines, style.lineNumbers)
 
   const windowTitle = state.titleOverride ?? state.request?.windowTitle ?? ''
   cache = {
@@ -258,8 +254,14 @@ async function rerender(): Promise<void> {
     style,
     windowTitle,
     gutterWidth: cache.gutterWidth,
+    // Live sync keeps exports correct even mid-edit (no blur dependency).
+    onTitleInput: (text) => {
+      state.titleOverride = text
+      if (cache) cache.windowTitle = text
+    },
     onTitleChange: (text) => {
       state.titleOverride = text
+      if (cache) cache.windowTitle = text
       void rerender()
     },
   })
@@ -275,6 +277,16 @@ async function rerender(): Promise<void> {
   }
 }
 
+/** Keep a value selectable even when it is not part of the curated list. */
+function ensureOption(select: HTMLSelectElement, value: string, label: string): void {
+  if (value && !Array.from(select.options).some((o) => o.value === value)) {
+    const opt = document.createElement('option')
+    opt.value = value
+    opt.textContent = label
+    select.appendChild(opt)
+  }
+}
+
 function syncToolbar(style: StyleConfig): void {
   const themeSelect = document.getElementById('ctl-theme') as HTMLSelectElement
   const langSelect = document.getElementById('ctl-lang') as HTMLSelectElement
@@ -283,6 +295,10 @@ function syncToolbar(style: StyleConfig): void {
   const transparent = document.querySelector<HTMLInputElement>('#ctl-transparent input')
   const engineSelect = document.getElementById('ctl-engine') as HTMLSelectElement
   const scaleSelect = document.getElementById('ctl-scale') as HTMLSelectElement
+  // Hand-set values outside the curated lists (e.g. languageOverride: "vue")
+  // must stay visible instead of collapsing to a blank option (review N-4).
+  ensureOption(themeSelect, style.theme, style.theme)
+  ensureOption(langSelect, style.languageOverride, style.languageOverride)
   themeSelect.value = style.theme
   langSelect.value = style.languageOverride
   lineNoSelect.value = style.lineNumbers
@@ -373,10 +389,10 @@ function flashFx(): void {
 
 window.addEventListener('message', ({ data }: MessageEvent<HostMessage>) => {
   if (data.type === 'update') {
-    // A different source file invalidates the session title override.
-    if (data.request.windowTitle !== state.lastBaseTitle) {
+    // A different source document invalidates the session title override.
+    if (data.request.documentKey !== state.lastDocKey) {
       state.titleOverride = null
-      state.lastBaseTitle = data.request.windowTitle
+      state.lastDocKey = data.request.documentKey
     }
     state.request = data.request
     state.style = data.style
