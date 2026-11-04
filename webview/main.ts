@@ -18,15 +18,12 @@ interface State {
   request: SnippetRequest | null
   style: StyleConfig
   themeContext: ThemeContext
-  /** Webview-local overrides (toolbar), survive host style pushes. */
-  overrides: Partial<StyleConfig>
 }
 
 const state: State = {
   request: null,
   style: { ...DEFAULT_STYLE },
   themeContext: { editorThemeName: '' },
-  overrides: {},
 }
 
 interface RenderCache {
@@ -41,8 +38,10 @@ interface RenderCache {
 let cache: RenderCache | null = null
 let renderSeq = 0
 
-function effectiveStyle(): StyleConfig {
-  return { ...state.style, ...state.overrides }
+/** F4.2: toolbar knobs persist to user settings via the host (validated
+ *  there by a whitelist); the new style arrives back as a host push. */
+function writeSetting(key: string, value: string | number | boolean): void {
+  vscode.postMessage({ type: 'updateSetting', key, value })
 }
 
 // ---------------------------------------------------------------- UI shell
@@ -67,8 +66,7 @@ function buildShell(): void {
     themeSelect.appendChild(opt)
   }
   themeSelect.addEventListener('change', () => {
-    state.overrides.theme = themeSelect.value
-    void rerender()
+    writeSetting('theme', themeSelect.value)
   })
 
   const engineSelect = document.createElement('select')
@@ -84,7 +82,7 @@ function buildShell(): void {
     engineSelect.appendChild(opt)
   }
   engineSelect.addEventListener('change', () => {
-    state.overrides.exportEngine = engineSelect.value as StyleConfig['exportEngine']
+    writeSetting('exportEngine', engineSelect.value)
   })
 
   const scaleSelect = document.createElement('select')
@@ -97,7 +95,7 @@ function buildShell(): void {
     scaleSelect.appendChild(opt)
   }
   scaleSelect.addEventListener('change', () => {
-    state.overrides.exportScale = Number(scaleSelect.value) as StyleConfig['exportScale']
+    writeSetting('exportScale', Number(scaleSelect.value))
   })
 
   const btnSave = document.createElement('button')
@@ -143,7 +141,7 @@ function buildShell(): void {
 
 async function rerender(): Promise<void> {
   const seq = ++renderSeq
-  const style = effectiveStyle()
+  const style = state.style
 
   const layout = state.request
     ? layoutCode(state.request.code, {
