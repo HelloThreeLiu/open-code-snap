@@ -101,6 +101,12 @@ function showPanel(context: vscode.ExtensionContext): void {
   // event on their own). No selection -> keep showing the previous snippet.
   activeEditorListener = vscode.window.onDidChangeActiveTextEditor(
     (editor) => {
+      // Cancel any pending debounce first: its timer captured the PREVIOUS
+      // editor and would overwrite this fresher push ~120ms later (review M-1).
+      if (pendingTimer) {
+        clearTimeout(pendingTimer)
+        pendingTimer = undefined
+      }
       if (editor) pushSnippetFrom(editor)
     },
     undefined,
@@ -123,6 +129,10 @@ function showPanel(context: vscode.ExtensionContext): void {
       webviewReady = false
       lastSnippet = null
       sourceEditor = undefined
+      if (pendingTimer) {
+        clearTimeout(pendingTimer)
+        pendingTimer = undefined
+      }
       selectionListener?.dispose()
       selectionListener = undefined
       activeEditorListener?.dispose()
@@ -253,8 +263,10 @@ async function applySettingUpdate(key: string, value: unknown): Promise<void> {
     vscode.window.showErrorMessage(`Open Code Snap: 写入设置失败: ${String(err)}`)
     return
   }
-  const effective = vscode.workspace.getConfiguration('openCodeSnap').get(key)
-  if (effective !== result.value) {
+  // Deterministic override check (review N-2): a workspace-level value wins
+  // over user settings regardless of when the change event lands.
+  const inspect = vscode.workspace.getConfiguration('openCodeSnap').inspect(key)
+  if (inspect && (inspect.workspaceValue !== undefined || inspect.workspaceFolderValue !== undefined)) {
     vscode.window.showWarningMessage(
       `Open Code Snap: 工作区设置覆盖了 "${key}"，面板改动未生效，请到工作区设置中修改。`
     )
