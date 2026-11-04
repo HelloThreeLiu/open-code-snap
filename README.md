@@ -3,6 +3,7 @@
 > 开源的代码截图工具 —— 选中代码，生成漂亮的分享图片。VS Code 扩展先行，渲染核心平台无关。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/HelloThreeLiu/open-code-snap/actions/workflows/ci.yml/badge.svg)](https://github.com/HelloThreeLiu/open-code-snap/actions/workflows/ci.yml)
 
 ## 为什么做这个
 
@@ -28,6 +29,13 @@ npm run build       # 构建 host + webview
 # 在 VS Code 里按 F5 启动扩展开发宿主（Extension Development Host）
 ```
 
+提交前门禁四件套（与 CI 一致，详见 [docs/WORKFLOW.md](docs/WORKFLOW.md)）：
+
+```bash
+npm run typecheck && npm test && npm run build && npm audit --omit=dev --registry=https://registry.npmjs.org
+```
+
+- **研发流程规范：[docs/WORKFLOW.md](docs/WORKFLOW.md)**（提交前必读）
 - 产品需求：[docs/PRD.md](docs/PRD.md)
 - 技术设计：[docs/tech-design.md](docs/tech-design.md)
 - 里程碑：[docs/roadmap.md](docs/roadmap.md)
@@ -40,6 +48,22 @@ src/core      # 渲染核心（纯 TS，无 VS Code 依赖，未来 Web/桌面�
 src/host      # 扩展宿主端（VS Code API）
 webview/      # 预览面板 UI（高亮、样式、导出）
 ```
+
+## 版本历史
+
+### v0.1.0（2026-11-04）
+
+**全局**
+
+- M0 技术验证完成：选区实时同步（不污染剪贴板）、Shiki 高亮跟随编辑器主题、Canvas / dom-to-image 双引擎导出、PNG 保存全链路在真实机器上验收通过。
+
+**页面**
+
+- 预览面板基线：macOS 窗口样式、行号、圆角阴影背景、透明背景支持。
+
+**修复**
+
+- 首次打开面板因焦点抢占导致的空白（b5639d4）。
 
 ## 声明
 
