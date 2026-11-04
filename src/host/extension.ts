@@ -4,12 +4,14 @@ import * as path from 'path'
 import { homedir } from 'os'
 import type { HostMessage, SnippetRequest, WebviewMessage } from '../core/protocol'
 import { readStyleFromConfig } from '../core/model'
+import { validateSettingUpdate } from '../core/settings'
 
 const VIEW_TYPE = 'openCodeSnap.panel'
 const PANEL_TITLE = 'Open Code Snap 📸'
 
 let panel: vscode.WebviewPanel | undefined
 let selectionListener: vscode.Disposable | undefined
+let activeEditorListener: vscode.Disposable | undefined
 let configListener: vscode.Disposable | undefined
 let pendingTimer: ReturnType<typeof setTimeout> | undefined
 let webviewReady = false
@@ -31,6 +33,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
 export function deactivate(): void {
   selectionListener?.dispose()
+  activeEditorListener?.dispose()
   configListener?.dispose()
 }
 
@@ -70,6 +73,9 @@ function showPanel(context: vscode.ExtensionContext): void {
       case 'saveImage':
         void saveImage(context, msg.dataURL)
         break
+      case 'updateSetting':
+        void applySettingUpdate(msg.key, msg.value)
+        break
       case 'notify':
         notify(msg.level, msg.text)
         break
@@ -85,6 +91,17 @@ function showPanel(context: vscode.ExtensionContext): void {
       // Debounce: a drag-selection fires dozens of events per second.
       if (pendingTimer) clearTimeout(pendingTimer)
       pendingTimer = setTimeout(() => pushSnippetFrom(e.textEditor), 120)
+    },
+    undefined,
+    context.subscriptions
+  )
+
+  // F1 acceptance: switching editor tabs must re-target the panel when the
+  // newly activated editor has a selection (tab switches fire no selection
+  // event on their own). No selection -> keep showing the previous snippet.
+  activeEditorListener = vscode.window.onDidChangeActiveTextEditor(
+    (editor) => {
+      if (editor) pushSnippetFrom(editor)
     },
     undefined,
     context.subscriptions
@@ -108,6 +125,8 @@ function showPanel(context: vscode.ExtensionContext): void {
       sourceEditor = undefined
       selectionListener?.dispose()
       selectionListener = undefined
+      activeEditorListener?.dispose()
+      activeEditorListener = undefined
       configListener?.dispose()
       configListener = undefined
     },
@@ -212,6 +231,37 @@ function pushCurrentState(): void {
       post({ type: 'style', style, themeContext })
     }
   }
+}
+
+/**
+ * F4.2: persist a webview-originated style knob to USER settings.
+ * The value passes the core whitelist first; a workspace-level override
+ * (which wins over user settings) is detected and surfaced instead of
+ * silently eating the change.
+ */
+async function applySettingUpdate(key: string, value: unknown): Promise<void> {
+  const result = validateSettingUpdate(key, value)
+  if (!result.ok) {
+    vscode.window.showErrorMessage(`Open Code Snap: 拒绝了设置更新（${result.reason}）`)
+    return
+  }
+  try {
+    await vscode.workspace
+      .getConfiguration('openCodeSnap')
+      .update(key, result.value, vscode.ConfigurationTarget.Global)
+  } catch (err) {
+    vscode.window.showErrorMessage(`Open Code Snap: 写入设置失败: ${String(err)}`)
+    return
+  }
+  const effective = vscode.workspace.getConfiguration('openCodeSnap').get(key)
+  if (effective !== result.value) {
+    vscode.window.showWarningMessage(
+      `Open Code Snap: 工作区设置覆盖了 "${key}"，面板改动未生效，请到工作区设置中修改。`
+    )
+  }
+  // Push the (possibly unchanged) effective style so the toolbar snaps back
+  // when a workspace override won, and renders promptly when it did not.
+  pushCurrentState()
 }
 
 async function saveImage(context: vscode.ExtensionContext, dataURL: string): Promise<void> {
