@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: 门禁（typecheck / test / build / audit / package）
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: 安装依赖（npm ci，严格校验 lockfile）
+        run: npm ci
+
+      - name: 类型检查
+        run: npm run typecheck
+
+      - name: 单元测试
+        run: npm test
+
+      - name: 构建
+        run: npm run build
+
+      # CI 走官方 registry，audit 端点可用；本地镜像源需 --registry 指定官方源
+      - name: 生产依赖漏洞审计
+        run: npm audit --omit=dev
+
+      - name: 打包验证（vsce）
+        run: npx -y @vscode/vsce package --no-dependencies -o open-code-snap.vsix
+
+      - name: 上传 vsix 产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: open-code-snap-vsix
+          path: open-code-snap.vsix
+          retention-days: 14
