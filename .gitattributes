@@ -1,0 +1,14 @@
+# Normalize line endings; keep the repo LF-only for cross-platform consistency.
+* text=auto eol=lf
+
+# Binaries
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.wasm binary
+*.ttf binary
+*.otf binary
+*.zip binary
+*.vsix binary

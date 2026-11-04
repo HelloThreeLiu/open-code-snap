@@ -1,0 +1,162 @@
+{
+  "name": "open-code-snap",
+  "displayName": "Open Code Snap",
+  "description": "📷 Open-source code screenshot tool — select code, get a beautiful image. 高亮跟随编辑器主题，双导出引擎，不污染剪贴板。",
+  "version": "0.1.0",
+  "publisher": "open-code-snap",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HelloThreeLiu/open-code-snap"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "screenshot",
+    "snippet",
+    "carbon",
+    "polacode",
+    "codesnap"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "openCodeSnap.start",
+        "title": "Open Code Snap",
+        "icon": "$(camera)"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "openCodeSnap.start",
+          "when": "editorHasSelection",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "type": "object",
+      "title": "Open Code Snap",
+      "properties": {
+        "openCodeSnap.theme": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Shiki 主题 id。留空则跟随当前 VS Code 主题（自动映射）。"
+        },
+        "openCodeSnap.windowStyle": {
+          "type": "string",
+          "enum": ["macos", "windows", "none"],
+          "default": "macos",
+          "description": "窗口样式：macOS 交通灯 / Windows 按钮 / 无"
+        },
+        "openCodeSnap.showWindowTitle": {
+          "type": "boolean",
+          "default": true,
+          "description": "显示窗口标题（文件名）"
+        },
+        "openCodeSnap.showLineNumbers": {
+          "type": "boolean",
+          "default": true,
+          "description": "显示行号"
+        },
+        "openCodeSnap.realLineNumbers": {
+          "type": "boolean",
+          "default": false,
+          "description": "使用真实行号（按选区起始行），否则从 1 开始"
+        },
+        "openCodeSnap.backgroundColor": {
+          "type": "string",
+          "default": "#abb8c3",
+          "description": "背景颜色"
+        },
+        "openCodeSnap.transparentBackground": {
+          "type": "boolean",
+          "default": false,
+          "description": "透明背景"
+        },
+        "openCodeSnap.padding": {
+          "type": "number",
+          "default": 32,
+          "description": "内边距（px）"
+        },
+        "openCodeSnap.borderRadius": {
+          "type": "number",
+          "default": 8,
+          "description": "窗口圆角（px）"
+        },
+        "openCodeSnap.shadowColor": {
+          "type": "string",
+          "default": "rgba(0, 0, 0, 0.55)",
+          "description": "阴影颜色"
+        },
+        "openCodeSnap.shadowBlur": {
+          "type": "number",
+          "default": 68,
+          "description": "阴影模糊半径（px）"
+        },
+        "openCodeSnap.shadowOffsetY": {
+          "type": "number",
+          "default": 20,
+          "description": "阴影垂直偏移（px）"
+        },
+        "openCodeSnap.fontFamily": {
+          "type": "string",
+          "default": "",
+          "description": "字体。留空跟随编辑器字体（推荐，需系统已安装）"
+        },
+        "openCodeSnap.fontSize": {
+          "type": "number",
+          "default": 14,
+          "description": "字号（px）"
+        },
+        "openCodeSnap.lineHeight": {
+          "type": "number",
+          "default": 1.6,
+          "description": "行高（倍数）"
+        },
+        "openCodeSnap.ligatures": {
+          "type": "boolean",
+          "default": true,
+          "description": "连字（跟随编辑器设置中的 fontLigatures）"
+        },
+        "openCodeSnap.exportScale": {
+          "type": "number",
+          "enum": [1, 2, 3],
+          "default": 2,
+          "description": "导出缩放倍数"
+        },
+        "openCodeSnap.exportEngine": {
+          "type": "string",
+          "enum": ["canvas", "dom"],
+          "default": "canvas",
+          "markdownDescription": "导出引擎：`canvas` 自绘（快、推荐）/ `dom` dom-to-image（兜底）"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.80.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "dom-to-image-more": "^2.13.0",
+    "shiki": "^3.0.0"
+  }
+}

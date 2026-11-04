@@ -1,0 +1,9 @@
+src/**
+webview/**
+tests/**
+esbuild.mjs
+tsconfig.json
+node_modules/.cache/**
+**/*.map
+docs/**
+.gitignore
