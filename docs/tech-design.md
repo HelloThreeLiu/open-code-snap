@@ -121,7 +121,7 @@ open-code-snap/
 
 ## 8. 性能与安全
 
-- Webview CSP：`default-src 'none'; img-src {webview.cspSource} data:; style-src {webview.cspSource} 'unsafe-inline'; font-src {webview.cspSource} data:; script-src 'nonce-{nonce}'`
+- Webview CSP：`default-src 'none'; img-src {webview.cspSource} data:; style-src {webview.cspSource} 'unsafe-inline'; font-src {webview.cspSource} data:; script-src 'nonce-{nonce}' 'wasm-unsafe-eval'`（`wasm-unsafe-eval` 仅为 Shiki 的 oniguruma WASM 引擎放行 WebAssembly 编译，不放行任意 eval）
 - 所有资源经 `asWebviewUri`，无外网请求
 - 选区同步防抖 120ms；代码 > 500 行时预览截断提示「导出仍全文」
 - 依赖最小化：运行时仅 shiki + dom-to-image-more（M2 后仅 shiki）

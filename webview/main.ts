@@ -186,7 +186,7 @@ async function rerender(): Promise<void> {
   setStatus(
     !state.request
       ? '等待代码选区…'
-      : `${layout.lines.length} 行 · ${themeId}${style.theme ? '' : resolved.exact ? '（已匹配编辑器主题）' : '（编辑器主题未精确映射，已回退）'}`
+      : `${layout.lines.length} 行 · ${themeId}${style.theme ? '' : resolved.exact ? '（已匹配编辑器主题）' : `（编辑器主题 "${state.themeContext.editorThemeName}" 未精确映射，已回退）`}`
   )
   if (state.request && !style.theme && !resolved.exact) {
     vscode.postMessage({ type: 'notify', level: 'info', text: `Open Code Snap: 编辑器主题 "${state.themeContext.editorThemeName}" 暂无精确映射，已回退到 ${resolved.id}。` })
@@ -234,12 +234,14 @@ async function exportImage(action: 'save' | 'copy'): Promise<void> {
     const ms = Math.round(performance.now() - t0)
     if (action === 'save') {
       vscode.postMessage({ type: 'saveImage', dataURL })
+      setStatus(`已生成，请在弹出的保存对话框中选择位置（${cache!.style.exportEngine} 引擎，${ms} ms）`)
     } else {
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': dataUrlToBlob(dataURL) })])
       flashFx()
+      setStatus(`已复制到剪贴板（${cache!.style.exportEngine} 引擎，${ms} ms，${Math.round((dataURL.length * 3) / 4 / 1024)} KB）——现在可去任意位置 Ctrl+V 粘贴`)
     }
-    setStatus(`已导出（${cache!.style.exportEngine} 引擎，${ms} ms，${Math.round((dataURL.length * 3) / 4 / 1024)} KB）`)
   } catch (err) {
+    setStatus(`❌ 导出失败: ${String(err)}`)
     vscode.postMessage({ type: 'notify', level: 'error', text: `Export failed: ${String(err)}` })
   }
 }
@@ -290,7 +292,10 @@ window.addEventListener('message', ({ data }: MessageEvent<HostMessage>) => {
   } else {
     return
   }
-  void rerender()
+  rerender().catch((err) => {
+    setStatus(`❌ 渲染失败: ${String(err)}`)
+    vscode.postMessage({ type: 'notify', level: 'error', text: `Open Code Snap render error: ${String(err)}` })
+  })
 })
 
 buildShell()

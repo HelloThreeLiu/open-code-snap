@@ -2,18 +2,28 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "npm: build",
-      "type": "npm",
-      "script": "build",
+      "label": "esbuild: build",
+      "type": "process",
+      "command": "node",
+      "args": ["esbuild.mjs"],
       "problemMatcher": [],
       "group": { "kind": "build", "isDefault": true }
     },
     {
-      "label": "npm: watch",
-      "type": "npm",
-      "script": "watch",
+      "label": "esbuild: watch",
+      "type": "process",
+      "command": "node",
+      "args": ["esbuild.mjs", "--watch"],
       "isBackground": true,
-      "problemMatcher": []
+      "problemMatcher": {
+        "owner": "esbuild-watch",
+        "pattern": { "regexp": "^\\[esbuild\\] (.*)$", "file": 1, "message": 1 },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\[esbuild\\] watching\\.\\.\\.$",
+          "endsPattern": "^\\[esbuild\\] build done$"
+        }
+      }
     }
   ]
 }

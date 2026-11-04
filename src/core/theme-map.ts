@@ -22,6 +22,11 @@ const ALIASES: Record<string, string> = {
   solarizedlight: 'solarized-light',
   quietlight: 'quiet-light',
   dimmedmonokai: 'monokai', // close enough fallback
+  // Legacy VS Code built-in theme names
+  visualstudiodark: 'dark-plus',
+  visualstudiolight: 'light-plus',
+  darkvisualstudio: 'dark-plus', // "Dark (Visual Studio)"
+  lightvisualstudio: 'light-plus',
 
   // Popular extension themes
   dracula: 'dracula',

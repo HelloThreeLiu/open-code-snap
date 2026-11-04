@@ -15,6 +15,9 @@ describe('resolveTheme', () => {
     expect(resolveTheme('Default Light Modern').id).toBe('github-light-default')
     expect(resolveTheme('Dark+ (default dark)').id).toBe('dark-plus')
     expect(resolveTheme('Monokai').id).toBe('monokai')
+    expect(resolveTheme('Visual Studio Dark').id).toBe('dark-plus')
+    expect(resolveTheme('Dark (Visual Studio)').id).toBe('dark-plus')
+    expect(resolveTheme('Visual Studio Light').id).toBe('light-plus')
   })
 
   it('maps popular extension themes including pack prefixes', () => {
