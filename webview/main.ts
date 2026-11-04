@@ -4,6 +4,7 @@ import { DEFAULT_STYLE } from '../src/core/model'
 import { layoutCode, type LayoutedCode } from '../src/core/layout'
 import { highlightCode, type HighlightResult } from '../src/core/highlight'
 import { resolveTheme, CURATED_THEMES } from '../src/core/theme-map'
+import { CURATED_LANGUAGES } from '../src/core/languages'
 import { gutterWidth } from '../src/core/geometry'
 import { renderPreview } from './preview'
 import { exportCanvasPng } from './export/canvas'
@@ -18,12 +19,18 @@ interface State {
   request: SnippetRequest | null
   style: StyleConfig
   themeContext: ThemeContext
+  /** Session-level window-title override; reset when the source file changes. */
+  titleOverride: string | null
+  /** Base title of the current request, to detect file switches. */
+  lastBaseTitle: string
 }
 
 const state: State = {
   request: null,
   style: { ...DEFAULT_STYLE },
   themeContext: { editorThemeName: '' },
+  titleOverride: null,
+  lastBaseTitle: '',
 }
 
 interface RenderCache {
@@ -68,6 +75,65 @@ function buildShell(): void {
   themeSelect.addEventListener('change', () => {
     writeSetting('theme', themeSelect.value)
   })
+
+  const langSelect = document.createElement('select')
+  langSelect.id = 'ctl-lang'
+  langSelect.title = 'Language override'
+  for (const { id, label } of CURATED_LANGUAGES) {
+    const opt = document.createElement('option')
+    opt.value = id
+    opt.textContent = label
+    langSelect.appendChild(opt)
+  }
+  langSelect.addEventListener('change', () => {
+    writeSetting('languageOverride', langSelect.value)
+  })
+
+  const lineNoSelect = document.createElement('select')
+  lineNoSelect.id = 'ctl-lineno'
+  lineNoSelect.title = 'Line numbers'
+  for (const [value, label] of [
+    ['off', '无行号'],
+    ['relative', '相对行号'],
+    ['real', '真实行号'],
+  ] as const) {
+    const opt = document.createElement('option')
+    opt.value = value
+    opt.textContent = label
+    lineNoSelect.appendChild(opt)
+  }
+  lineNoSelect.addEventListener('change', () => {
+    writeSetting('lineNumbers', lineNoSelect.value)
+  })
+
+  const windowSelect = document.createElement('select')
+  windowSelect.id = 'ctl-window'
+  windowSelect.title = 'Window style'
+  for (const [value, label] of [
+    ['macos', 'macOS 窗口'],
+    ['windows', 'Windows 窗口'],
+    ['none', '无窗口'],
+  ] as const) {
+    const opt = document.createElement('option')
+    opt.value = value
+    opt.textContent = label
+    windowSelect.appendChild(opt)
+  }
+  windowSelect.addEventListener('change', () => {
+    writeSetting('windowStyle', windowSelect.value)
+  })
+
+  const transparentLabel = document.createElement('label')
+  transparentLabel.id = 'ctl-transparent'
+  const transparent = document.createElement('input')
+  transparent.type = 'checkbox'
+  transparent.title = '透明背景'
+  transparent.addEventListener('change', () => {
+    writeSetting('transparentBackground', transparent.checked)
+  })
+  const transparentText = document.createElement('span')
+  transparentText.textContent = '透明'
+  transparentLabel.append(transparent, transparentText)
 
   const engineSelect = document.createElement('select')
   engineSelect.id = 'ctl-engine'
@@ -115,7 +181,18 @@ function buildShell(): void {
   btnBench.title = 'M0: measure both export engines'
   btnBench.addEventListener('click', () => void runBenchmark())
 
-  toolbar.append(themeSelect, engineSelect, scaleSelect, btnSave, btnCopy, btnBench)
+  toolbar.append(
+    themeSelect,
+    langSelect,
+    lineNoSelect,
+    windowSelect,
+    transparentLabel,
+    engineSelect,
+    scaleSelect,
+    btnSave,
+    btnCopy,
+    btnBench
+  )
 
   const previewWrap = document.createElement('div')
   previewWrap.id = 'preview-wrap'
@@ -153,22 +230,25 @@ async function rerender(): Promise<void> {
   const resolved = resolveTheme(state.themeContext.editorThemeName)
   const themeId = style.theme || resolved.id
 
-  const highlight = await highlightCode(layout, state.request?.languageId ?? 'text', themeId)
+  // F1.4: manual language override wins over the document's languageId.
+  const languageId = style.languageOverride || state.request?.languageId || 'text'
+  const highlight = await highlightCode(layout, languageId, themeId)
   if (seq !== renderSeq) return // a newer update arrived meanwhile
 
   const maxNo = layout.lines.length
-    ? style.realLineNumbers && state.request
+    ? style.lineNumbers === 'real' && state.request
       ? state.request.startLine + layout.lines.length
       : layout.lines.length
     : 0
 
+  const windowTitle = state.titleOverride ?? state.request?.windowTitle ?? ''
   cache = {
     layout,
     highlight,
     style,
     gutterWidth: gutterWidth(maxNo, style),
     themeId,
-    windowTitle: state.request?.windowTitle ?? '',
+    windowTitle,
   }
 
   const preview = document.getElementById('preview')!
@@ -176,8 +256,12 @@ async function rerender(): Promise<void> {
     layout,
     highlight,
     style,
-    windowTitle: cache.windowTitle,
+    windowTitle,
     gutterWidth: cache.gutterWidth,
+    onTitleChange: (text) => {
+      state.titleOverride = text
+      void rerender()
+    },
   })
 
   syncToolbar(style)
@@ -193,9 +277,17 @@ async function rerender(): Promise<void> {
 
 function syncToolbar(style: StyleConfig): void {
   const themeSelect = document.getElementById('ctl-theme') as HTMLSelectElement
+  const langSelect = document.getElementById('ctl-lang') as HTMLSelectElement
+  const lineNoSelect = document.getElementById('ctl-lineno') as HTMLSelectElement
+  const windowSelect = document.getElementById('ctl-window') as HTMLSelectElement
+  const transparent = document.querySelector<HTMLInputElement>('#ctl-transparent input')
   const engineSelect = document.getElementById('ctl-engine') as HTMLSelectElement
   const scaleSelect = document.getElementById('ctl-scale') as HTMLSelectElement
   themeSelect.value = style.theme
+  langSelect.value = style.languageOverride
+  lineNoSelect.value = style.lineNumbers
+  windowSelect.value = style.windowStyle
+  if (transparent) transparent.checked = style.transparentBackground
   engineSelect.value = style.exportEngine
   scaleSelect.value = String(style.exportScale)
 }
@@ -281,6 +373,11 @@ function flashFx(): void {
 
 window.addEventListener('message', ({ data }: MessageEvent<HostMessage>) => {
   if (data.type === 'update') {
+    // A different source file invalidates the session title override.
+    if (data.request.windowTitle !== state.lastBaseTitle) {
+      state.titleOverride = null
+      state.lastBaseTitle = data.request.windowTitle
+    }
     state.request = data.request
     state.style = data.style
     state.themeContext = data.themeContext

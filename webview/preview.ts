@@ -17,6 +17,8 @@ export function renderPreview(
     windowTitle: string
     /** Measured gutter width, shared with the canvas exporter. */
     gutterWidth: number
+    /** Session-level window-title edit (PRD F2.2). */
+    onTitleChange?: (text: string) => void
   }
 ): HTMLElement {
   const { layout, highlight, style, windowTitle, gutterWidth } = input
@@ -33,7 +35,7 @@ export function renderPreview(
   const win = document.createElement('div')
   win.id = 'window'
   win.style.borderRadius = `${style.borderRadius}px`
-  win.style.boxShadow = `${style.shadowColor} 0 ${style.shadowOffsetY}px ${style.shadowBlur}px`
+  win.style.boxShadow = `${style.shadowColor} ${style.shadowOffsetX}px ${style.shadowOffsetY}px ${style.shadowBlur}px`
   win.style.background = highlight.colors.bg
   win.style.fontFamily = style.fontFamily || 'Consolas, monospace'
   win.style.fontSize = `${style.fontSize}px`
@@ -41,7 +43,7 @@ export function renderPreview(
   win.style.fontVariantLigatures = style.ligatures ? 'normal' : 'none'
 
   if (titleBarHeight(style) > 0) {
-    win.appendChild(buildTitleBar(style, windowTitle, highlight.colors.fg))
+    win.appendChild(buildTitleBar(style, windowTitle, highlight.colors.fg, input.onTitleChange))
   }
 
   const code = document.createElement('div')
@@ -63,7 +65,12 @@ export function renderPreview(
   return stage
 }
 
-function buildTitleBar(style: StyleConfig, windowTitle: string, fg: string): HTMLElement {
+function buildTitleBar(
+  style: StyleConfig,
+  windowTitle: string,
+  fg: string,
+  onTitleChange?: (text: string) => void
+): HTMLElement {
   const bar = document.createElement('div')
   bar.className = 'titlebar'
   bar.style.height = `${titleBarHeight(style)}px`
@@ -86,6 +93,25 @@ function buildTitleBar(style: StyleConfig, windowTitle: string, fg: string): HTM
     title.style.color = fg
     title.style.opacity = '0.55'
     title.textContent = windowTitle
+    if (onTitleChange) {
+      // In-place title editing (PRD F2.2): click to edit, Enter/blur commits.
+      try {
+        title.contentEditable = 'plaintext-only'
+      } catch {
+        title.contentEditable = 'true' // non-Chromium fallback
+      }
+      title.classList.add('editable')
+      title.spellcheck = false
+      title.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          title.blur()
+        }
+      })
+      title.addEventListener('blur', () => {
+        onTitleChange((title.textContent ?? '').trim())
+      })
+    }
     bar.appendChild(title)
   }
 
@@ -113,7 +139,7 @@ function buildLine(
   const row = document.createElement('div')
   row.className = 'line'
 
-  if (style.showLineNumbers) {
+  if (style.lineNumbers !== 'off') {
     const ln = document.createElement('span')
     ln.className = 'ln'
     ln.style.color = fg
@@ -122,7 +148,7 @@ function buildLine(
     ln.style.width = `${gutterW - GUTTER_GAP}px`
     ln.style.marginRight = `${GUTTER_GAP}px`
     ln.style.textAlign = 'right'
-    ln.textContent = String(lineNumberFor(line, style.realLineNumbers))
+    ln.textContent = String(lineNumberFor(line, style.lineNumbers))
     row.appendChild(ln)
   }
 
