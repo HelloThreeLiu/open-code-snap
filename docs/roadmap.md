@@ -49,4 +49,7 @@ F10 脱敏遮罩、F11 长代码优化、F12 i18n、F13 发布流水线。
 
 | 日期 | 代码规模 | 引擎 | 耗时 | 备注 |
 |---|---|---|---|---|
-| _待 M0 填写_ | | | | |
+| 2026-11-04 | 10 行 | canvas | 32 ms / 208 KB | Win11 开发宿主，2x 缩放 |
+| 2026-11-04 | 10 行 | dom-to-image | 342 ms / 104 KB | 同环境；**canvas 快 10.7 倍**，验证 ADR D2 |
+
+> 观察：canvas 产出的 PNG 体积约为 dom 引擎的 2 倍（208KB vs 104KB），推测是 canvas 文本抗锯齿更锐利导致压缩率略低——M1 用更大代码样本复核，若显著再优化（如调 toDataURL 前的 canvas 尺寸或改用 OffscreenCanvas + ImageEncoder 质量参数）。

@@ -14,6 +14,8 @@ let configListener: vscode.Disposable | undefined
 let pendingTimer: ReturnType<typeof setTimeout> | undefined
 let webviewReady = false
 let lastSnippet: SnippetRequest | null = null
+/** The editor the panel currently follows; survives webview taking focus. */
+let sourceEditor: vscode.TextEditor | undefined
 
 export function activate(context: vscode.ExtensionContext): void {
   const command = vscode.commands.registerCommand('openCodeSnap.start', () => {
@@ -37,11 +39,26 @@ function showPanel(context: vscode.ExtensionContext): void {
     panel.reveal(vscode.ViewColumn.Beside, true)
     return
   }
-  panel = vscode.window.createWebviewPanel(VIEW_TYPE, PANEL_TITLE, vscode.ViewColumn.Beside, {
-    enableScripts: true,
-    retainContextWhenHidden: true,
-    localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'dist')],
-  })
+  // Capture the snippet at command time: opening the panel must not depend
+  // on the active editor staying focused afterwards.
+  const editor = vscode.window.activeTextEditor
+  const snippet = editor ? snippetFrom(editor) : null
+  if (snippet) {
+    lastSnippet = snippet
+    sourceEditor = editor
+  }
+  panel = vscode.window.createWebviewPanel(
+    VIEW_TYPE,
+    PANEL_TITLE,
+    // preserveFocus: keep focus (and the selection context) in the editor —
+    // stealing it would clear activeTextEditor and blank the first render.
+    { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
+    {
+      enableScripts: true,
+      retainContextWhenHidden: true,
+      localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'dist')],
+    }
+  )
   panel.webview.html = buildWebviewHtml(context, panel.webview)
 
   panel.webview.onDidReceiveMessage((msg: WebviewMessage) => {
@@ -62,7 +79,9 @@ function showPanel(context: vscode.ExtensionContext): void {
   selectionListener = vscode.window.onDidChangeTextEditorSelection(
     (e) => {
       if (!e.selections[0] || e.selections[0].isEmpty) return
-      if (e.textEditor !== vscode.window.activeTextEditor) return
+      // Follow the tracked source editor even when the webview holds focus;
+      // also accept whichever editor is currently active (switching files).
+      if (e.textEditor !== sourceEditor && e.textEditor !== vscode.window.activeTextEditor) return
       // Debounce: a drag-selection fires dozens of events per second.
       if (pendingTimer) clearTimeout(pendingTimer)
       pendingTimer = setTimeout(() => pushSnippetFrom(e.textEditor), 120)
@@ -86,6 +105,7 @@ function showPanel(context: vscode.ExtensionContext): void {
       panel = undefined
       webviewReady = false
       lastSnippet = null
+      sourceEditor = undefined
       selectionListener?.dispose()
       selectionListener = undefined
       configListener?.dispose()
@@ -170,6 +190,7 @@ function pushSnippetFrom(editor: vscode.TextEditor): void {
   const snippet = snippetFrom(editor)
   if (!snippet) return
   lastSnippet = snippet
+  sourceEditor = editor
   if (webviewReady) {
     post({ type: 'update', request: snippet, style: currentStyle(), themeContext: { editorThemeName: editorThemeName() } })
   }
