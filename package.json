@@ -69,15 +69,16 @@
           "default": true,
           "description": "显示窗口标题（文件名）"
         },
-        "openCodeSnap.showLineNumbers": {
-          "type": "boolean",
-          "default": true,
-          "description": "显示行号"
+        "openCodeSnap.lineNumbers": {
+          "type": "string",
+          "enum": ["off", "relative", "real"],
+          "default": "relative",
+          "markdownDescription": "行号模式：`off` 关闭 / `relative` 从选区头计 1 / `real` 真实文档行号（按选区起始行）。旧配置 `showLineNumbers` / `realLineNumbers` 自动迁移"
         },
-        "openCodeSnap.realLineNumbers": {
-          "type": "boolean",
-          "default": false,
-          "description": "使用真实行号（按选区起始行），否则从 1 开始"
+        "openCodeSnap.languageOverride": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "强制指定 Shiki 语言 id（如 `python`）。留空自动跟随文档语言"
         },
         "openCodeSnap.backgroundColor": {
           "type": "string",
@@ -109,6 +110,11 @@
           "default": 68,
           "description": "阴影模糊半径（px）"
         },
+        "openCodeSnap.shadowOffsetX": {
+          "type": "number",
+          "default": 0,
+          "description": "阴影水平偏移（px）"
+        },
         "openCodeSnap.shadowOffsetY": {
           "type": "number",
           "default": 20,
@@ -133,6 +139,11 @@
           "type": "boolean",
           "default": true,
           "description": "连字（跟随编辑器设置中的 fontLigatures）"
+        },
+        "openCodeSnap.tabSize": {
+          "type": "number",
+          "default": 0,
+          "markdownDescription": "Tab 宽度。`0` 跟随文档的编辑器设置"
         },
         "openCodeSnap.exportScale": {
           "type": "number",

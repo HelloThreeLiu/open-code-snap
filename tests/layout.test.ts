@@ -61,10 +61,10 @@ describe('layoutCode', () => {
 
 describe('lineNumberFor', () => {
   const line = { text: 'x', displayNo: 1, realNo: 42 }
-  it('uses display numbers by default', () => {
-    expect(lineNumberFor(line, false)).toBe(1)
+  it('uses display numbers in relative mode', () => {
+    expect(lineNumberFor(line, 'relative')).toBe(1)
   })
-  it('uses real numbers when enabled', () => {
-    expect(lineNumberFor(line, true)).toBe(42)
+  it('uses real numbers in real mode', () => {
+    expect(lineNumberFor(line, 'real')).toBe(42)
   })
 })

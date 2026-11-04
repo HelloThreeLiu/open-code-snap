@@ -186,6 +186,8 @@ function snippetFrom(editor: vscode.TextEditor): SnippetRequest | null {
   if (!selection || selection.isEmpty) return null
   const document = editor.document
   const fontLigatures = vscode.workspace.getConfiguration('editor').get<boolean>('fontLigatures', false)
+  // openCodeSnap.tabSize > 0 overrides the document's tab size (PRD F2.5).
+  const tabSizeOverride = vscode.workspace.getConfiguration('openCodeSnap').get<number>('tabSize', 0)
   return {
     code: document.getText(selection),
     languageId: document.languageId,
@@ -195,7 +197,7 @@ function snippetFrom(editor: vscode.TextEditor): SnippetRequest | null {
       family: vscode.workspace.getConfiguration('editor').get<string>('fontFamily', 'Consolas, monospace'),
       ligatures: fontLigatures === true,
       // tabSize option can be a string in rare configs; normalize it.
-      tabSize: Number(editor.options.tabSize ?? 4) || 4,
+      tabSize: tabSizeOverride > 0 ? tabSizeOverride : Number(editor.options.tabSize ?? 4) || 4,
     },
   }
 }

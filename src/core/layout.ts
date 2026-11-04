@@ -2,6 +2,7 @@
  * Pure text layout: tab expansion, blank-line trimming, common-indent strip.
  * Runs BEFORE highlighting so tokens and layout always agree.
  */
+import type { LineNumbersMode } from './protocol'
 
 export interface LayoutOptions {
   tabSize: number
@@ -73,7 +74,7 @@ export function layoutCode(code: string, options: LayoutOptions): LayoutedCode {
   return { lines }
 }
 
-/** Which number to show for a line given style settings. */
-export function lineNumberFor(line: LayoutedLine, realLineNumbers: boolean): number {
-  return realLineNumbers ? line.realNo : line.displayNo
+/** Which number to show for a line given the lineNumbers mode. */
+export function lineNumberFor(line: LayoutedLine, mode: LineNumbersMode): number {
+  return mode === 'real' ? line.realNo : line.displayNo
 }
