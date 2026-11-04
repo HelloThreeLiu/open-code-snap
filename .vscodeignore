@@ -7,3 +7,9 @@ node_modules/.cache/**
 **/*.map
 docs/**
 .gitignore
+.github/**
+.vscode/**
+.zcode/**
+types/**
+.nvmrc
+*.vsix

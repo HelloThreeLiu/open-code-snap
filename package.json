@@ -10,7 +10,8 @@
     "url": "https://github.com/HelloThreeLiu/open-code-snap"
   },
   "engines": {
-    "vscode": "^1.80.0"
+    "vscode": "^1.80.0",
+    "node": ">=18"
   },
   "categories": [
     "Other"
