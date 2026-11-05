@@ -60,7 +60,11 @@
         },
         "openCodeSnap.windowStyle": {
           "type": "string",
-          "enum": ["macos", "windows", "none"],
+          "enum": [
+            "macos",
+            "windows",
+            "none"
+          ],
           "default": "macos",
           "description": "窗口样式：macOS 交通灯 / Windows 按钮 / 无"
         },
@@ -71,7 +75,11 @@
         },
         "openCodeSnap.lineNumbers": {
           "type": "string",
-          "enum": ["off", "relative", "real"],
+          "enum": [
+            "off",
+            "relative",
+            "real"
+          ],
           "default": "relative",
           "markdownDescription": "行号模式：`off` 关闭 / `relative` 从选区头计 1 / `real` 真实文档行号（按选区起始行）。旧配置 `showLineNumbers` / `realLineNumbers` 自动迁移"
         },
@@ -147,13 +155,20 @@
         },
         "openCodeSnap.exportScale": {
           "type": "number",
-          "enum": [1, 2, 3],
+          "enum": [
+            1,
+            2,
+            3
+          ],
           "default": 2,
           "description": "导出缩放倍数"
         },
         "openCodeSnap.exportEngine": {
           "type": "string",
-          "enum": ["canvas", "dom"],
+          "enum": [
+            "canvas",
+            "dom"
+          ],
           "default": "canvas",
           "markdownDescription": "导出引擎：`canvas` 自绘（快、推荐）/ `dom` dom-to-image（兜底）"
         }
@@ -177,5 +192,6 @@
   "dependencies": {
     "dom-to-image-more": "^2.13.0",
     "shiki": "^3.0.0"
-  }
+  },
+  "icon": "media/icon.png"
 }
