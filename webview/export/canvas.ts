@@ -72,6 +72,7 @@ export function exportCanvasPng(input: CanvasExportInput): string {
   ctx.save()
   ctx.shadowColor = style.shadowColor
   ctx.shadowBlur = style.shadowBlur
+  ctx.shadowOffsetX = style.shadowOffsetX
   ctx.shadowOffsetY = style.shadowOffsetY
   ctx.fillStyle = bg
   roundRect(ctx, wx, wy, windowW, windowH, style.borderRadius)
@@ -119,7 +120,7 @@ export function exportCanvasPng(input: CanvasExportInput): string {
   }
 
   // --- line numbers ---
-  if (style.showLineNumbers && layout.lines.length > 0) {
+  if (style.lineNumbers !== 'off' && layout.lines.length > 0) {
     ctx.fillStyle = fg
     ctx.globalAlpha = 0.45
     ctx.font = baseFont
@@ -127,7 +128,7 @@ export function exportCanvasPng(input: CanvasExportInput): string {
     const numX = wx + pad + input.gutterWidth - GUTTER_GAP
     layout.lines.forEach((line, i) => {
       const y = wy + titleH + pad + i * lineH
-      ctx.fillText(String(lineNumberFor(line, style.realLineNumbers)), numX, y)
+      ctx.fillText(String(lineNumberFor(line, style.lineNumbers)), numX, y)
     })
     ctx.globalAlpha = 1
     ctx.textAlign = 'left'

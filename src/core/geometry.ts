@@ -20,9 +20,10 @@ export function stageInsets(style: StyleConfig): Insets {
   const safety = Math.ceil(style.shadowBlur / 2)
   return {
     top: style.padding + safety,
-    right: style.padding + safety,
+    // Shadow extends horizontally by blur/2 plus |offset| in its direction.
+    right: style.padding + safety + Math.max(0, style.shadowOffsetX),
     bottom: style.padding + safety + Math.abs(style.shadowOffsetY),
-    left: style.padding + safety,
+    left: style.padding + safety + Math.max(0, -style.shadowOffsetX),
   }
 }
 
@@ -67,7 +68,7 @@ export function gutterWidth(
   maxLineNumber: number,
   style: StyleConfig
 ): number {
-  if (!style.showLineNumbers || maxLineNumber <= 0) return 0
+  if (style.lineNumbers === 'off' || maxLineNumber <= 0) return 0
   const w = measureText(String(maxLineNumber), fontString(style))
   return Math.ceil(w) + GUTTER_GAP
 }

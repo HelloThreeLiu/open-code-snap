@@ -13,6 +13,8 @@ export interface SnippetRequest {
   startLine: number
   /** Suggested window title (usually the file name). */
   windowTitle: string
+  /** Stable document identity (document uri) — survives same-basename files. */
+  documentKey: string
   /** Editor font settings to follow. */
   font: {
     /** Raw CSS font-family list from editor.fontFamily. */
@@ -24,20 +26,25 @@ export interface SnippetRequest {
   }
 }
 
+/** Line number rendering mode (PRD F2.3). */
+export type LineNumbersMode = 'off' | 'relative' | 'real'
+
 /** All user-tunable style knobs. Mirrors `openCodeSnap.*` settings. */
 export interface StyleConfig {
   /** Shiki theme id; empty = follow VS Code theme. */
   theme: string
   windowStyle: 'macos' | 'windows' | 'none'
   showWindowTitle: boolean
-  showLineNumbers: boolean
-  realLineNumbers: boolean
+  lineNumbers: LineNumbersMode
+  /** Force a Shiki language id; empty = auto-detect from the document. */
+  languageOverride: string
   backgroundColor: string
   transparentBackground: boolean
   padding: number
   borderRadius: number
   shadowColor: string
   shadowBlur: number
+  shadowOffsetX: number
   shadowOffsetY: number
   fontFamily: string
   fontSize: number

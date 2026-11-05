@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { expandTabs, layoutCode, lineNumberFor } from '../src/core/layout'
+import { expandTabs, layoutCode, lineNumberFor, maxLineNumber } from '../src/core/layout'
 
 describe('expandTabs', () => {
   it('leaves text without tabs untouched', () => {
@@ -61,10 +61,31 @@ describe('layoutCode', () => {
 
 describe('lineNumberFor', () => {
   const line = { text: 'x', displayNo: 1, realNo: 42 }
-  it('uses display numbers by default', () => {
-    expect(lineNumberFor(line, false)).toBe(1)
+  it('uses display numbers in relative mode', () => {
+    expect(lineNumberFor(line, 'relative')).toBe(1)
   })
-  it('uses real numbers when enabled', () => {
-    expect(lineNumberFor(line, true)).toBe(42)
+  it('uses real numbers in real mode', () => {
+    expect(lineNumberFor(line, 'real')).toBe(42)
+  })
+})
+
+describe('maxLineNumber', () => {
+  it('returns 0 for empty layout', () => {
+    expect(maxLineNumber([], 'real')).toBe(0)
+    expect(maxLineNumber([], 'relative')).toBe(0)
+  })
+  it('counts lines in relative mode', () => {
+    const { lines } = layoutCode('a\nb\nc', { tabSize: 4, startLine: 0 })
+    expect(maxLineNumber(lines, 'relative')).toBe(3)
+  })
+  it('uses the last realNo in real mode, including trimmed leading blanks', () => {
+    // Two leading blank lines are dropped but keep their document offset:
+    // doc line 1 (0-based startLine=0) blank, line 2 blank, lines 3-4 kept.
+    const { lines } = layoutCode('\n\nconst a = 1\nconst b = 2', { tabSize: 4, startLine: 0 })
+    expect(lines).toHaveLength(2)
+    expect(lines[1].realNo).toBe(4)
+    // Regression (review M-1): startLine + length (2) understates the true
+    // max; the gutter then runs a digit short on digit-boundary crossings.
+    expect(maxLineNumber(lines, 'real')).toBe(4)
   })
 })
