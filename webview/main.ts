@@ -44,6 +44,8 @@ interface RenderCache {
 
 let cache: RenderCache | null = null
 let renderSeq = 0
+/** Editor theme we already showed a fallback notice for (dedupe). */
+let lastFallbackNotified = ''
 
 /** F4.2: toolbar knobs persist to user settings via the host (validated
  *  there by a whitelist); the new style arrives back as a host push. */
@@ -275,7 +277,16 @@ async function rerender(): Promise<void> {
         ? `（近似映射：${state.themeContext.editorThemeName} → ${themeId}）`
         : `（编辑器主题 "${state.themeContext.editorThemeName}" 未精确映射，已回退）`
   setStatus(!state.request ? '等待代码选区…' : `${layout.lines.length} 行 · ${themeId}${themeNote}`)
-  if (state.request && !style.theme && !resolved.exact && !resolved.approx) {
+  // Notify once per unmapped theme — every selection change re-renders and
+  // must not spam the same fallback notice (review N-2).
+  if (
+    state.request &&
+    !style.theme &&
+    !resolved.exact &&
+    !resolved.approx &&
+    lastFallbackNotified !== state.themeContext.editorThemeName
+  ) {
+    lastFallbackNotified = state.themeContext.editorThemeName
     vscode.postMessage({ type: 'notify', level: 'info', text: `Open Code Snap: 编辑器主题 "${state.themeContext.editorThemeName}" 暂无精确映射，已回退到 ${resolved.id}。` })
   }
 }

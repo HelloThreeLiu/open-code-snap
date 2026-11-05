@@ -10,13 +10,12 @@ const FALLBACK_THEME = 'github-dark'
  * Named-but-inexact mappings: editor themes Shiki does not bundle, mapped
  * to the closest bundled palette. The UI labels these "近似映射" instead
  * of claiming an exact match or silently eating the notice.
+ * Only list variants that DIFFER from the family default — the generic key
+ * (e.g. "noctis") already catches every variant via substring matching.
  */
 const APPROX_ALIASES: Record<string, string> = {
-  // Noctis family (dark blue-grey -> one-dark-pro; Lux is light).
+  // Noctis family: dark blue-grey -> one-dark-pro; Lux is the light variant.
   noctis: 'one-dark-pro',
-  noctisminimus: 'one-dark-pro',
-  noctishibernus: 'one-dark-pro',
-  noctisuva: 'one-dark-pro',
   noctislux: 'github-light',
 }
 

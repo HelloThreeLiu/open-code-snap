@@ -33,8 +33,14 @@ describe('resolveTheme', () => {
     expect(r.id).toBe('one-dark-pro')
     expect(r.exact).toBe(false)
     expect(r.approx).toBe(true)
+    // Unlisted variants fall through to the generic family key.
+    const serene = resolveTheme('Noctis Serene')
+    expect(serene.id).toBe('one-dark-pro')
+    expect(serene.approx).toBe(true)
     expect(resolveTheme('Noctis Minimus').id).toBe('one-dark-pro')
-    expect(resolveTheme('Noctis Lux').id).toBe('github-light')
+    const lux = resolveTheme('Noctis Lux')
+    expect(lux.id).toBe('github-light')
+    expect(lux.approx).toBe(true)
   })
 
   it('falls back with exact=false and a light hint for unknown light themes', () => {
