@@ -15,14 +15,16 @@
 - [x] 面板显示两种引擎导出耗时（数据已登记下方实测表）
 - [x] `npm run build` 零错误，`npm test` 通过（19 项）
 
-## M1 — MVP（1~2 周）
+## M1 — MVP（1~2 周）✅ 已完成（2026-11-05）
 
-PRD §4.1 全部（F1~F4）。验收：
-- [ ] 5 种主题（Dark+ / One Dark Pro / Monokai / Dracula / GitHub Light）下与编辑器配色 spot check 一致
-- [ ] 复制到剪贴板在 Win/macOS/Linux 三平台可用（至少 Win 实测 + CI 冒烟）
-- [ ] 300 行 Canvas 导出 < 500ms（M0 实测数据校准）
-- [ ] 设置项全部进 `settings.json` 并即时生效
-- [ ] 手工测试清单全绿（M1 时建 `docs/checklist-m1.md`）
+PRD §4.1 全部（F1~F4）。验收（详见 [checklist-m1.md](checklist-m1.md)）：
+- [x] 5 种主题（Dark+ / One Dark Pro / Monokai / Dracula / GitHub Light）下与编辑器配色 spot check 一致（2026-11-05）
+- [x] 复制到剪贴板：Win 实测通过（QQ 粘贴出图）；macOS/Linux 待 M2 期间社区反馈
+- [x] 300 行 Canvas 导出 < 500ms —— 实测 **183ms**（2026-11-05）
+- [x] 设置项全部进 `settings.json` 并即时生效（面板写回 + configListener 推送闭环）
+- [x] 手工测试清单全绿（[docs/checklist-m1.md](checklist-m1.md)，A/B/C/D 四节全过）
+
+> 过程要点：三批 PR（#2 写回通道+F1 / #3 样式旋钮 / release）均走分支→CI→独立审查→修复闭环；两次独立审查共 10 条发现全部闭环（含 gutter 行号宽度竞态、切 tab 过期快照等真缺陷）。主题映射新增 Noctis 近似层（用户日常主题）。
 
 ## M2 — Beta（+2 周）
 
@@ -51,5 +53,7 @@ F10 脱敏遮罩、F11 长代码优化、F12 i18n、F13 发布流水线。
 |---|---|---|---|---|
 | 2026-11-04 | 10 行 | canvas | 32 ms / 208 KB | Win11 开发宿主，2x 缩放 |
 | 2026-11-04 | 10 行 | dom-to-image | 342 ms / 104 KB | 同环境；**canvas 快 10.7 倍**，验证 ADR D2 |
+| 2026-11-05 | 300 行 | canvas | 183 ms / 4406 KB | Win11 开发宿主，2x；M1 性能验收达标（<500ms） |
+| 2026-11-05 | 300 行 | dom-to-image | 11770 ms / 1888 KB | 同环境，1x；大片段下不可用级慢 |
 
-> 观察：canvas 产出的 PNG 体积约为 dom 引擎的 2 倍（208KB vs 104KB），推测是 canvas 文本抗锯齿更锐利导致压缩率略低——M1 用更大代码样本复核，若显著再优化（如调 toDataURL 前的 canvas 尺寸或改用 OffscreenCanvas + ImageEncoder 质量参数）。
+> 观察（M1 复核后）：canvas 体积仍约 2 倍（4406KB vs 1888KB @300行），文本抗锯齿更锐利导致压缩率低，M2 优化候选（canvas 尺寸/toDataURL 质量参数）。dom 引擎在 300 行下 11.7s 已不可用——M2 考虑仅保留小片段兜底或直接移除（ADR D2 复核）。

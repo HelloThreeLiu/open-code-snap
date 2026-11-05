@@ -2,7 +2,7 @@
   "name": "open-code-snap",
   "displayName": "Open Code Snap",
   "description": "📷 Open-source code screenshot tool — select code, get a beautiful image. 高亮跟随编辑器主题，双导出引擎，不污染剪贴板。",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "open-code-snap",
   "license": "MIT",
   "repository": {

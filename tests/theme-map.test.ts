@@ -28,6 +28,21 @@ describe('resolveTheme', () => {
     expect(resolveTheme('GitHub Theme Dark Default').id).toBe('github-dark-default')
   })
 
+  it('maps Noctis variants approximately (Shiki bundles no noctis)', () => {
+    const r = resolveTheme('Noctis')
+    expect(r.id).toBe('one-dark-pro')
+    expect(r.exact).toBe(false)
+    expect(r.approx).toBe(true)
+    // Unlisted variants fall through to the generic family key.
+    const serene = resolveTheme('Noctis Serene')
+    expect(serene.id).toBe('one-dark-pro')
+    expect(serene.approx).toBe(true)
+    expect(resolveTheme('Noctis Minimus').id).toBe('one-dark-pro')
+    const lux = resolveTheme('Noctis Lux')
+    expect(lux.id).toBe('github-light')
+    expect(lux.approx).toBe(true)
+  })
+
   it('falls back with exact=false and a light hint for unknown light themes', () => {
     const r = resolveTheme('Some Unknown Light Theme')
     expect(r.exact).toBe(false)
