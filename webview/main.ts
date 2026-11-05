@@ -267,12 +267,15 @@ async function rerender(): Promise<void> {
   })
 
   syncToolbar(style)
-  setStatus(
-    !state.request
-      ? '等待代码选区…'
-      : `${layout.lines.length} 行 · ${themeId}${style.theme ? '' : resolved.exact ? '（已匹配编辑器主题）' : `（编辑器主题 "${state.themeContext.editorThemeName}" 未精确映射，已回退）`}`
-  )
-  if (state.request && !style.theme && !resolved.exact) {
+  const themeNote = style.theme
+    ? ''
+    : resolved.exact
+      ? '（已匹配编辑器主题）'
+      : resolved.approx
+        ? `（近似映射：${state.themeContext.editorThemeName} → ${themeId}）`
+        : `（编辑器主题 "${state.themeContext.editorThemeName}" 未精确映射，已回退）`
+  setStatus(!state.request ? '等待代码选区…' : `${layout.lines.length} 行 · ${themeId}${themeNote}`)
+  if (state.request && !style.theme && !resolved.exact && !resolved.approx) {
     vscode.postMessage({ type: 'notify', level: 'info', text: `Open Code Snap: 编辑器主题 "${state.themeContext.editorThemeName}" 暂无精确映射，已回退到 ${resolved.id}。` })
   }
 }

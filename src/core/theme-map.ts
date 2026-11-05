@@ -6,6 +6,20 @@
 
 const FALLBACK_THEME = 'github-dark'
 
+/**
+ * Named-but-inexact mappings: editor themes Shiki does not bundle, mapped
+ * to the closest bundled palette. The UI labels these "近似映射" instead
+ * of claiming an exact match or silently eating the notice.
+ */
+const APPROX_ALIASES: Record<string, string> = {
+  // Noctis family (dark blue-grey -> one-dark-pro; Lux is light).
+  noctis: 'one-dark-pro',
+  noctisminimus: 'one-dark-pro',
+  noctishibernus: 'one-dark-pro',
+  noctisuva: 'one-dark-pro',
+  noctislux: 'github-light',
+}
+
 /** normalized editor theme name -> shiki theme id */
 const ALIASES: Record<string, string> = {
   // VS Code built-ins
@@ -62,6 +76,8 @@ export interface ResolvedTheme {
   id: string
   /** Whether the editor theme was matched exactly. */
   exact: boolean
+  /** Named mapping to a close-but-different palette (exact is false). */
+  approx?: boolean
 }
 
 /**
@@ -73,14 +89,23 @@ export function resolveTheme(editorThemeName: string): ResolvedTheme {
     return { id: FALLBACK_THEME, exact: false }
   }
   const normalized = normalizeThemeName(editorThemeName)
-  if (ALIASES[normalized]) {
+  if (Object.prototype.hasOwnProperty.call(ALIASES, normalized)) {
     return { id: ALIASES[normalized], exact: true }
   }
+  // Substring passes: longest key wins ("noctislux" must beat "noctis").
+  const longestMatch = (map: Record<string, string>): string | undefined =>
+    Object.keys(map)
+      .sort((a, b) => b.length - a.length)
+      .find((key) => normalized.includes(key))
   // Second pass: try alias keys contained in the normalized name,
   // e.g. "Dracula Theme" -> contains "dracula"; "GitHub Theme Dark Default".
-  const hit = Object.keys(ALIASES).find((key) => normalized.includes(key))
+  const hit = longestMatch(ALIASES)
   if (hit) {
     return { id: ALIASES[hit], exact: true }
+  }
+  const approxKey = longestMatch(APPROX_ALIASES)
+  if (approxKey) {
+    return { id: APPROX_ALIASES[approxKey], exact: false, approx: true }
   }
   // Light/dark heuristics from the name to pick a sensible fallback.
   if (/(light|white)/.test(normalized)) {
