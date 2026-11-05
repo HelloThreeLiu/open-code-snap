@@ -28,10 +28,10 @@
 
 | # | 项目 | 判定标准 | 结果 |
 |---|---|---|---|
-| C1 | 5 主题 spot check | Dark+ / One Dark Pro / Monokai / Dracula / GitHub Light 下，预览高亮与编辑器配色一致（关键字/字符串/注释抽查） | ⬜ |
-| C2 | 300 行导出性能 | Canvas 引擎 300 行 < 500ms（面板「双引擎计时」读数），记录数值 | ⬜ |
-| C3 | 剪贴板跨应用 | 面板「复制到剪贴板」→ 画图/聊天窗口 Ctrl+V 出图 | ⬜ |
-| C4 | 导出一致性抽查 | canvas 与 dom 双引擎导出同一选区，肉眼比对无差异（字体/阴影/行号/标题） | ⬜ |
+| C1 | 5 主题 spot check | Dark+ / One Dark Pro / Monokai / Dracula / GitHub Light 下，预览高亮与编辑器配色一致（关键字/字符串/注释抽查） | ✅ 2026-11-05 |
+| C2 | 300 行导出性能 | Canvas 引擎 300 行 < 500ms（面板「双引擎计时」读数），记录数值 | ✅ 2026-11-05：canvas **183 ms** / 4406 KB（2x）≪ 500ms；同场 dom 11770 ms / 1888 KB（观察项，见 roadmap） |
+| C3 | 剪贴板跨应用 | 面板「复制到剪贴板」→ 画图/聊天窗口 Ctrl+V 出图 | ✅ 2026-11-05：QQ 粘贴出图。已知行为：webview 内右键「复制图片」不适用（预览为 DOM 非 `<img>`），按钮为受支持入口 |
+| C4 | 导出一致性抽查 | canvas 与 dom 双引擎导出同一选区，肉眼比对无差异（字体/阴影/行号/标题） | ✅ 2026-11-05：像素直方图核验——背景同为 `#282c34`、注释色 `#7f848e` 双图同现、色相族一致；标题/交通灯/行号/阴影/圆角一致（canvas 2x vs dom 1x，dom 混色为 1x 抗锯齿缩放现象） |
 
 ## D. 自动化（随每次 push 由 CI 复验）
 
@@ -43,10 +43,10 @@
 
 ## E. 发版（⑦ 发布检查清单）
 
-- [ ] main CI 绿
-- [ ] package.json 版本 `0.2.0`
-- [ ] README 版本历史（全局 / 页面 / 修复三段式）
-- [ ] 本地四件套复跑
-- [ ] vsix 实机安装冒烟（本地 vsce package 或 CI artifact）
+- [x] main CI 绿（PR #2 / #3 门禁均 15s 内通过）
+- [x] package.json 版本 `0.2.0`
+- [x] README 版本历史（全局 / 页面 / 修复三段式）
+- [x] 本地四件套复跑
+- [ ] vsix 实机安装冒烟（CI artifact 下载安装）
 - [ ] tag `v0.2.0` + GitHub Release（vsix 资产）
-- [ ] roadmap.md M1 状态更新
+- [x] roadmap.md M1 状态更新
