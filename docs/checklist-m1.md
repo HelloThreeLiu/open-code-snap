@@ -43,10 +43,10 @@
 
 ## E. 发版（⑦ 发布检查清单）
 
-- [x] main CI 绿（PR #2 / #3 门禁均 15s 内通过）
+- [x] main CI 绿（PR #2 / #3 / #4 及图标提交门禁均通过）
 - [x] package.json 版本 `0.2.0`
 - [x] README 版本历史（全局 / 页面 / 修复三段式）
 - [x] 本地四件套复跑
-- [ ] vsix 实机安装冒烟（CI artifact 下载安装）
-- [ ] tag `v0.2.0` + GitHub Release（vsix 资产）
+- [x] vsix 实机安装冒烟（CI artifact 下载安装，2026-11-05 用户确认图标与功能正常）
+- [x] tag `v0.2.0` + GitHub Release（vsix 资产）：https://github.com/HelloThreeLiu/open-code-snap/releases/tag/v0.2.0
 - [x] roadmap.md M1 状态更新
