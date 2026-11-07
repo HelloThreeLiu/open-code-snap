@@ -68,10 +68,21 @@ export function contrastOverlay(bg: string): string {
 export function resolveBackgroundPaint(style: StyleConfig): BackgroundPaint {
   switch (style.backgroundType) {
     case 'gradient':
+      // Hand-edited settings.json can smuggle unparseable colors past the
+      // whitelist; the canvas addColorStop would throw on them, so each side
+      // falls back to its partner and finally to backgroundColor (review M-3).
       return {
         type: 'gradient',
-        colorA: style.gradientColorA,
-        colorB: style.gradientColorB,
+        colorA: parseHex(style.gradientColorA)
+          ? style.gradientColorA
+          : parseHex(style.gradientColorB)
+            ? style.gradientColorB
+            : style.backgroundColor,
+        colorB: parseHex(style.gradientColorB)
+          ? style.gradientColorB
+          : parseHex(style.gradientColorA)
+            ? style.gradientColorA
+            : style.backgroundColor,
         angle: style.gradientAngle,
       }
     case 'grid':
@@ -124,6 +135,14 @@ export function cssPaintSizes(paint: BackgroundPaint): string[] {
     default:
       return []
   }
+}
+
+/**
+ * Representative backdrop color for overlay contrast derivation (grid lines,
+ * dots, watermark): gradients contribute their perceptual midpoint.
+ */
+export function paintAccent(paint: BackgroundPaint): string {
+  return paint.type === 'gradient' ? mixColors(paint.colorA, paint.colorB) : paint.color
 }
 
 /**

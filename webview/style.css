@@ -143,6 +143,7 @@ body {
 .watermark {
   position: absolute;
   white-space: nowrap;
+  line-height: 1; /* pin the box height to fontSize, matching canvas anchors */
 }
 
 #window {

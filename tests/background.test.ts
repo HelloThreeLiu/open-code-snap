@@ -5,6 +5,8 @@ import {
   cssPaintSizes,
   cssPaintString,
   gradientEndpoints,
+  mixColors,
+  paintAccent,
   resolveBackgroundPaint,
 } from '../src/core/background'
 import { DEFAULT_STYLE } from '../src/core/model'
@@ -104,6 +106,43 @@ describe('cssPaintString / cssPaintSizes', () => {
     const paint = resolveBackgroundPaint(style({ backgroundType: 'dots' }))
     expect(cssPaintString(paint)).toBe('radial-gradient(circle, rgba(0, 0, 0, 0.14) 1.5px, transparent 1.5px)')
     expect(cssPaintSizes(paint)).toEqual(['24px 24px'])
+  })
+})
+
+describe('mixColors / paintAccent (review M-4/N-5)', () => {
+  it('blends two hex colors at the midpoint', () => {
+    expect(mixColors('#000000', '#ffffff')).toBe('#808080')
+    expect(mixColors('#102030', '#304050')).toBe('#203040')
+  })
+
+  it('expands 3-digit hex before blending', () => {
+    expect(mixColors('#000', '#fff')).toBe('#808080')
+  })
+
+  it('falls back to the first color on unparseable input', () => {
+    expect(mixColors('azure', '#ffffff')).toBe('azure')
+    expect(mixColors('#123456', 'nope')).toBe('#123456')
+  })
+
+  it('paintAccent uses the gradient midpoint, plain color otherwise', () => {
+    expect(
+      paintAccent({ type: 'gradient', colorA: '#000000', colorB: '#ffffff', angle: 90 })
+    ).toBe('#808080')
+    expect(paintAccent({ type: 'solid', color: '#abb8c3' })).toBe('#abb8c3')
+  })
+})
+
+describe('gradient color guard (review M-3)', () => {
+  it('falls back invalid gradient colors to their partner, then backgroundColor', () => {
+    const p = resolveBackgroundPaint(
+      style({ backgroundType: 'gradient', gradientColorA: '#ff00zz', gradientColorB: '#B379F5' })
+    )
+    expect(p).toMatchObject({ type: 'gradient', colorA: '#B379F5', colorB: '#B379F5' })
+
+    const both = resolveBackgroundPaint(
+      style({ backgroundType: 'gradient', gradientColorA: 'junk', gradientColorB: 'garbage' })
+    )
+    expect(both).toMatchObject({ type: 'gradient', colorA: '#abb8c3', colorB: '#abb8c3' })
   })
 })
 

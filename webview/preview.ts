@@ -7,7 +7,7 @@ import {
   contrastOverlay,
   cssPaintSizes,
   cssPaintString,
-  mixColors,
+  paintAccent,
   resolveBackgroundPaint,
   type BackgroundPaint,
 } from '../src/core/background'
@@ -16,11 +16,6 @@ import {
   watermarkIsEnabled,
   watermarkPlacements,
 } from '../src/core/watermark'
-
-/** Representative backdrop color the watermark/overlay contrast derives from. */
-export function paintAccent(paint: BackgroundPaint): string {
-  return paint.type === 'gradient' ? mixColors(paint.colorA, paint.colorB) : paint.color
-}
 
 /** Apply a resolved paint to the stage element (CSS side of F5). */
 export function applyBackground(stage: HTMLElement, paint: BackgroundPaint): void {
@@ -130,7 +125,7 @@ function buildWatermarkLayer(
 
   // Measure with the same font the canvas will draw, so tile spacing matches.
   const font = fontString(style, { size: style.watermarkFontSize })
-  const textWidth = Math.ceil(measureText(text, font))
+  const textWidth = measureText(text, font)
   // Stage is already in the DOM here, so the real box size is known.
   const box = { width: stage.offsetWidth, height: stage.offsetHeight }
   const placements = watermarkPlacements(box, style.watermarkPosition, {

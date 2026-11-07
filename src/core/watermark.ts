@@ -62,7 +62,9 @@ export function watermarkPlacements(
     case 'bottom-right':
       return [corner('right', stage.height - m - opts.fontSize)]
     case 'tile': {
-      const textW = Math.max(opts.textWidth ?? opts.fontSize * 4, 1)
+      // Ceil here so preview and canvas pass the same effective width —
+      // sub-pixel drift would shift every tiled column (review M-2).
+      const textW = Math.max(Math.ceil(opts.textWidth ?? opts.fontSize * 4), 1)
       const colGap = Math.max(TILE_SPACING, textW + 48)
       const rowGap = Math.max(opts.fontSize * 4, 24)
       const placements: WatermarkPlacement[] = []

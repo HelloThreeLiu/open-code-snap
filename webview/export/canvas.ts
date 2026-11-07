@@ -18,7 +18,7 @@ import {
 import {
   contrastOverlay,
   gradientEndpoints,
-  mixColors,
+  paintAccent,
   resolveBackgroundPaint,
   type BackgroundPaint,
 } from '../../src/core/background'
@@ -236,14 +236,14 @@ function drawWatermark(
   if (!text) return
   const font = fontString(style, { size: style.watermarkFontSize })
   const textWidth = measureText(text, font)
+
   const placements = watermarkPlacements({ width: W, height: H }, style.watermarkPosition, {
     fontSize: style.watermarkFontSize,
     textWidth,
   })
-  const accent = paint.type === 'gradient' ? mixColors(paint.colorA, paint.colorB) : paint.color
   ctx.save()
   ctx.globalAlpha = style.watermarkOpacity
-  ctx.fillStyle = contrastOverlay(accent)
+  ctx.fillStyle = contrastOverlay(paintAccent(paint))
   ctx.font = font
   ctx.textBaseline = 'top'
   for (const p of placements) {
