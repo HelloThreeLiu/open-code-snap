@@ -99,7 +99,11 @@ function makeNumberInput(
   input.max = String(max)
   input.step = String(step)
   input.addEventListener('change', () => {
-    const n = Number(input.value)
+    const raw = input.value.trim()
+    // `Number('')` is 0, which would silently write the clamped minimum —
+    // an emptied field must keep the current value instead (review Major-1).
+    if (raw === '') return
+    const n = Number(raw)
     if (!Number.isFinite(n)) return
     onChange(Math.min(max, Math.max(min, n)))
   })
