@@ -91,6 +91,51 @@ describe('new M1 style knobs', () => {
   })
 })
 
+describe('M2 background/watermark knobs (F5/F6)', () => {
+  it('defaults keep the pre-0.3 solid background and no watermark', () => {
+    const s = readStyleFromConfig(makeConfig(), {})
+    expect(s.backgroundType).toBe('solid')
+    expect(s.watermarkText).toBe('')
+    expect(s.gradientAngle).toBe(135)
+  })
+
+  it('reads explicit background and watermark values', () => {
+    const s = readStyleFromConfig(
+      makeConfig(
+        {
+          backgroundType: 'gradient',
+          gradientColorA: '#FF0000',
+          gradientColorB: '#0000FF',
+          gradientAngle: 45,
+          watermarkText: '@liu {date}',
+          watermarkPosition: 'tile',
+          watermarkFontSize: 18,
+          watermarkOpacity: 0.8,
+        },
+        [
+          'backgroundType',
+          'gradientColorA',
+          'gradientColorB',
+          'gradientAngle',
+          'watermarkText',
+          'watermarkPosition',
+          'watermarkFontSize',
+          'watermarkOpacity',
+        ]
+      ),
+      {}
+    )
+    expect(s.backgroundType).toBe('gradient')
+    expect(s.gradientColorA).toBe('#FF0000')
+    expect(s.gradientColorB).toBe('#0000FF')
+    expect(s.gradientAngle).toBe(45)
+    expect(s.watermarkText).toBe('@liu {date}')
+    expect(s.watermarkPosition).toBe('tile')
+    expect(s.watermarkFontSize).toBe(18)
+    expect(s.watermarkOpacity).toBe(0.8)
+  })
+})
+
 describe('retired keys in old settings.json (dom engine removed)', () => {
   it('ignores a leftover exportEngine value and reads everything else', () => {
     // VS Code keeps unknown keys in settings.json; reading must not break

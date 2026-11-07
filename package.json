@@ -96,7 +96,60 @@
         "openCodeSnap.transparentBackground": {
           "type": "boolean",
           "default": false,
-          "description": "透明背景"
+          "description": "透明背景（优先于一切背景样式）"
+        },
+        "openCodeSnap.backgroundType": {
+          "type": "string",
+          "enum": [
+            "solid",
+            "gradient",
+            "grid",
+            "dots"
+          ],
+          "default": "solid",
+          "markdownDescription": "背景类型：`solid` 纯色（默认）/ `gradient` 双色渐变 / `grid` 网格 / `dots` 点阵。网格与点阵以背景颜色为底色"
+        },
+        "openCodeSnap.gradientColorA": {
+          "type": "string",
+          "default": "#7093FF",
+          "description": "渐变起始色（backgroundType = gradient 时生效）"
+        },
+        "openCodeSnap.gradientColorB": {
+          "type": "string",
+          "default": "#B379F5",
+          "description": "渐变结束色（backgroundType = gradient 时生效）"
+        },
+        "openCodeSnap.gradientAngle": {
+          "type": "number",
+          "default": 135,
+          "description": "渐变角度（度，CSS 语义：0 向上、90 向右，范围 0-360）"
+        },
+        "openCodeSnap.watermarkText": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "水印文字，留空不显示。支持模板变量 `{date}`（本地日期）与 `{file}`（窗口标题）"
+        },
+        "openCodeSnap.watermarkPosition": {
+          "type": "string",
+          "enum": [
+            "top-left",
+            "top-right",
+            "bottom-left",
+            "bottom-right",
+            "tile"
+          ],
+          "default": "bottom-right",
+          "description": "水印位置：四角或平铺"
+        },
+        "openCodeSnap.watermarkFontSize": {
+          "type": "number",
+          "default": 14,
+          "description": "水印字号（px，范围 8-72）"
+        },
+        "openCodeSnap.watermarkOpacity": {
+          "type": "number",
+          "default": 0.5,
+          "description": "水印透明度（0.05-1）"
         },
         "openCodeSnap.padding": {
           "type": "number",

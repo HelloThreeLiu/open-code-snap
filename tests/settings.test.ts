@@ -27,6 +27,37 @@ describe('validateSettingUpdate', () => {
     expect(validateSettingUpdate('lineHeight', 3).ok).toBe(true)
   })
 
+  describe('M2 background/watermark keys (F5/F6)', () => {
+    it('accepts every backgroundType and watermarkPosition enum value', () => {
+      for (const v of ['solid', 'gradient', 'grid', 'dots']) {
+        expect(validateSettingUpdate('backgroundType', v).ok).toBe(true)
+      }
+      for (const v of ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'tile']) {
+        expect(validateSettingUpdate('watermarkPosition', v).ok).toBe(true)
+      }
+    })
+
+    it('accepts gradient angle and watermark boundaries', () => {
+      expect(validateSettingUpdate('gradientAngle', 0).ok).toBe(true)
+      expect(validateSettingUpdate('gradientAngle', 360).ok).toBe(true)
+      expect(validateSettingUpdate('watermarkFontSize', 72).ok).toBe(true)
+      expect(validateSettingUpdate('watermarkOpacity', 0.05).ok).toBe(true)
+      expect(validateSettingUpdate('watermarkOpacity', 1).ok).toBe(true)
+      expect(validateSettingUpdate('watermarkText', '@me {date}').ok).toBe(true)
+    })
+
+    it('rejects out-of-range / off-enum values', () => {
+      expect(validateSettingUpdate('backgroundType', 'noise').ok).toBe(false)
+      expect(validateSettingUpdate('watermarkPosition', 'middle').ok).toBe(false)
+      expect(validateSettingUpdate('gradientAngle', 361).ok).toBe(false)
+      expect(validateSettingUpdate('gradientAngle', -1).ok).toBe(false)
+      expect(validateSettingUpdate('watermarkFontSize', 7).ok).toBe(false)
+      expect(validateSettingUpdate('watermarkOpacity', 0.04).ok).toBe(false)
+      expect(validateSettingUpdate('watermarkOpacity', 1.1).ok).toBe(false)
+      expect(validateSettingUpdate('watermarkText', 42).ok).toBe(false)
+    })
+  })
+
   it('rejects out-of-range numbers', () => {
     expect(validateSettingUpdate('padding', -1).ok).toBe(false)
     expect(validateSettingUpdate('padding', 129).ok).toBe(false)
