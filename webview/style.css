@@ -55,12 +55,6 @@ body {
   border: none;
 }
 
-#toolbar button.ghost {
-  background: transparent;
-  color: var(--vscode-button-foreground, #ccc);
-  border: 1px solid var(--vscode-button-border, #555);
-}
-
 #toolbar button:hover {
   background: var(--vscode-button-hoverBackground, #1177bb);
 }

@@ -47,7 +47,7 @@ describe('validateSettingUpdate', () => {
     expect(validateSettingUpdate('exportScale', 2).ok).toBe(true)
   })
 
-  it('rejects the retired exportEngine key (dom engine removed in 0.3)', () => {
+  it('rejects the retired exportEngine key (dom engine removed)', () => {
     expect(validateSettingUpdate('exportEngine', 'canvas').ok).toBe(false)
     expect(validateSettingUpdate('exportEngine', 'dom').ok).toBe(false)
   })

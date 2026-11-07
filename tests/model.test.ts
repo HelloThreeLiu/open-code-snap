@@ -91,7 +91,7 @@ describe('new M1 style knobs', () => {
   })
 })
 
-describe('retired keys in old settings.json (dom engine removed in 0.3)', () => {
+describe('retired keys in old settings.json (dom engine removed)', () => {
   it('ignores a leftover exportEngine value and reads everything else', () => {
     // VS Code keeps unknown keys in settings.json; reading must not break
     // and the leftover value must not resurrect a removed field.

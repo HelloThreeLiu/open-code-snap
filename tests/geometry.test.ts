@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+
 import { gutterWidth, measureText, setMeasureTextImpl, stageInsets, titleBarHeight } from '../src/core/geometry'
 import { DEFAULT_STYLE } from '../src/core/model'
 import type { StyleConfig } from '../src/core/protocol'
@@ -12,6 +13,8 @@ const style = (overrides: Partial<StyleConfig> = {}): StyleConfig => ({
 const stubMeasure = (text: string): number => text.length * 8
 
 describe('measureText injection', () => {
+  afterEach(() => setMeasureTextImpl(null))
+
   it('throws before an implementation is injected', () => {
     setMeasureTextImpl(null)
     expect(() => measureText('a', '12px x')).toThrow()

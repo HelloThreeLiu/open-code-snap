@@ -320,11 +320,11 @@ async function exportImage(action: 'save' | 'copy'): Promise<void> {
     const ms = Math.round(performance.now() - t0)
     if (action === 'save') {
       vscode.postMessage({ type: 'saveImage', dataURL })
-      setStatus(`已生成，请在弹出的保存对话框中选择位置（canvas 引擎，${ms} ms）`)
+      setStatus(`已生成，请在弹出的保存对话框中选择位置（${ms} ms）`)
     } else {
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': dataUrlToBlob(dataURL) })])
       flashFx()
-      setStatus(`已复制到剪贴板（canvas 引擎，${ms} ms，${Math.round((dataURL.length * 3) / 4 / 1024)} KB）——现在可去任意位置 Ctrl+V 粘贴`)
+      setStatus(`已复制到剪贴板（${ms} ms，${Math.round((dataURL.length * 3) / 4 / 1024)} KB）——现在可去任意位置 Ctrl+V 粘贴`)
     }
   } catch (err) {
     setStatus(`❌ 导出失败: ${String(err)}`)
