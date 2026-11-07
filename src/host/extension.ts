@@ -9,6 +9,13 @@ import { validateSettingUpdate } from '../core/settings'
 const VIEW_TYPE = 'openCodeSnap.panel'
 const PANEL_TITLE = 'Open Code Snap 📸'
 
+/** Message-body guards (hang-⑤): the webview is trusted-but-fallible, so
+ *  every webview→host payload is shape-checked before the host acts on it. */
+const MAX_NOTIFY_CHARS = 2000
+/** base64 chars; 3x-scale 300-line exports are ~13M chars, so this leaves headroom. */
+const MAX_SAVE_IMAGE_CHARS = 32 * 1024 * 1024
+const PNG_DATAURL_PREFIX = 'data:image/png;base64,'
+
 let panel: vscode.WebviewPanel | undefined
 let selectionListener: vscode.Disposable | undefined
 let activeEditorListener: vscode.Disposable | undefined
@@ -70,15 +77,33 @@ function showPanel(context: vscode.ExtensionContext): void {
         webviewReady = true
         pushCurrentState()
         break
-      case 'saveImage':
+      case 'saveImage': {
+        if (
+          typeof msg.dataURL !== 'string' ||
+          !msg.dataURL.startsWith(PNG_DATAURL_PREFIX) ||
+          msg.dataURL.length > MAX_SAVE_IMAGE_CHARS
+        ) {
+          vscode.window.showErrorMessage('Open Code Snap: 拒绝了非法的图片数据（未通过校验）。')
+          break
+        }
         void saveImage(context, msg.dataURL)
         break
+      }
       case 'updateSetting':
         void applySettingUpdate(msg.key, msg.value)
         break
-      case 'notify':
-        notify(msg.level, msg.text)
+      case 'notify': {
+        if (
+          (msg.level === 'info' || msg.level === 'warn' || msg.level === 'error') &&
+          typeof msg.text === 'string' &&
+          msg.text.length <= MAX_NOTIFY_CHARS
+        ) {
+          notify(msg.level, msg.text)
+        } else {
+          console.warn('Open Code Snap: dropped malformed notify message')
+        }
         break
+      }
     }
   })
 
@@ -292,7 +317,8 @@ async function applySettingUpdate(key: string, value: unknown): Promise<void> {
 }
 
 async function saveImage(context: vscode.ExtensionContext, dataURL: string): Promise<void> {
-  const base64 = dataURL.slice(dataURL.indexOf(',') + 1)
+  // The caller has verified the exact `data:image/png;base64,` prefix.
+  const base64 = dataURL.slice(PNG_DATAURL_PREFIX.length)
   const key = 'openCodeSnap.lastSaveDir'
   const lastDir = context.globalState.get<string>(key)
   const defaultUri = vscode.Uri.file(
