@@ -127,6 +127,35 @@ export function cssPaintSizes(paint: BackgroundPaint): string[] {
 }
 
 /**
+ * Perceptual-midpoint blend of two colors, used to pick a contrast tone for
+ * overlays sitting on a gradient (grid lines, dots, watermark). Falls back
+ * to the first color when either side is not a parseable hex value.
+ */
+export function mixColors(a: string, b: string): string {
+  const pa = parseHex(a)
+  const pb = parseHex(b)
+  if (!pa || !pb) return a
+  const mix = (x: number, y: number): number => Math.round((x + y) / 2)
+  return (
+    '#' +
+    [0, 1, 2]
+      .map((i) => mix(pa[i], pb[i]).toString(16).padStart(2, '0'))
+      .join('')
+  )
+}
+
+/** "rrggbb" or "rgb" hex triple → [r, g, b]; null otherwise. */
+function parseHex(color: string): [number, number, number] | null {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color.trim())
+  if (!m) return null
+  const h = m[1]
+  if (h.length === 3) {
+    return [parseInt(h[0] + h[0], 16), parseInt(h[1] + h[1], 16), parseInt(h[2] + h[2], 16)]
+  }
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
+}
+
+/**
  * Gradient endpoints for Canvas createLinearGradient / SVG linearGradient
  * (userSpaceOnUse) over a rect of the given size, with CSS angle semantics:
  * 0deg points up, 90deg points right, growing clockwise.

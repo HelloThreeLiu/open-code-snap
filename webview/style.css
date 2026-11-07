@@ -132,6 +132,19 @@ body {
   display: inline-block;
 }
 
+/* F6: watermark copies anchored over the stage padding area */
+.watermark-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.watermark {
+  position: absolute;
+  white-space: nowrap;
+}
+
 #window {
   display: inline-block;
   min-width: 120px;

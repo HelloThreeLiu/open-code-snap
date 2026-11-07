@@ -2,7 +2,41 @@ import type { LayoutedCode, LayoutedLine } from '../src/core/layout'
 import { lineNumberFor } from '../src/core/layout'
 import type { HighlightResult } from '../src/core/highlight'
 import type { StyleConfig } from '../src/core/protocol'
-import { stageInsets, titleBarHeight, WINDOW_INNER_PAD, GUTTER_GAP } from '../src/core/geometry'
+import { stageInsets, titleBarHeight, WINDOW_INNER_PAD, GUTTER_GAP, fontString, measureText } from '../src/core/geometry'
+import {
+  contrastOverlay,
+  cssPaintSizes,
+  cssPaintString,
+  mixColors,
+  resolveBackgroundPaint,
+  type BackgroundPaint,
+} from '../src/core/background'
+import {
+  resolveWatermarkText,
+  watermarkIsEnabled,
+  watermarkPlacements,
+} from '../src/core/watermark'
+
+/** Representative backdrop color the watermark/overlay contrast derives from. */
+export function paintAccent(paint: BackgroundPaint): string {
+  return paint.type === 'gradient' ? mixColors(paint.colorA, paint.colorB) : paint.color
+}
+
+/** Apply a resolved paint to the stage element (CSS side of F5). */
+export function applyBackground(stage: HTMLElement, paint: BackgroundPaint): void {
+  if (paint.type === 'gradient') {
+    stage.style.background = cssPaintString(paint)
+    return
+  }
+  stage.style.background = paint.color
+  if (paint.type === 'grid' || paint.type === 'dots') {
+    stage.style.backgroundImage = cssPaintString(paint)
+    stage.style.backgroundSize = cssPaintSizes(paint).join(', ')
+  } else {
+    stage.style.backgroundImage = 'none'
+    stage.style.backgroundSize = 'auto'
+  }
+}
 
 /**
  * Render the preview DOM under #stage — the visual source of truth.
@@ -29,11 +63,18 @@ export function renderPreview(
 
   const stage = document.createElement('div')
   stage.id = 'stage'
+  stage.style.position = 'relative'
   const insets = stageInsets(style)
   stage.style.padding = `${insets.top}px ${insets.right}px ${insets.bottom}px ${insets.left}px`
-  stage.style.background = style.transparentBackground
-    ? 'transparent'
-    : style.backgroundColor
+
+  const paint = resolveBackgroundPaint(style)
+  if (style.transparentBackground) {
+    // Transparent wins over any backdrop kind (pre-0.3 semantics).
+    stage.style.background = 'transparent'
+    stage.style.backgroundImage = 'none'
+  } else {
+    applyBackground(stage, paint)
+  }
 
   const win = document.createElement('div')
   win.id = 'window'
@@ -67,7 +108,50 @@ export function renderPreview(
   win.appendChild(code)
   stage.appendChild(win)
   container.appendChild(stage)
+
+  // Watermarks need the laid-out stage size, so build after mount.
+  if (!style.transparentBackground && watermarkIsEnabled(style)) {
+    stage.appendChild(buildWatermarkLayer(stage, style, paint, windowTitle))
+  }
   return stage
+}
+
+/** Watermark copies over the stage padding area (F6, CSS side). */
+function buildWatermarkLayer(
+  stage: HTMLElement,
+  style: StyleConfig,
+  paint: BackgroundPaint,
+  windowTitle: string
+): HTMLElement {
+  const layer = document.createElement('div')
+  layer.className = 'watermark-layer'
+  const text = resolveWatermarkText(style.watermarkText, { file: windowTitle })
+  if (!text) return layer
+
+  // Measure with the same font the canvas will draw, so tile spacing matches.
+  const font = fontString(style, { size: style.watermarkFontSize })
+  const textWidth = Math.ceil(measureText(text, font))
+  // Stage is already in the DOM here, so the real box size is known.
+  const box = { width: stage.offsetWidth, height: stage.offsetHeight }
+  const placements = watermarkPlacements(box, style.watermarkPosition, {
+    fontSize: style.watermarkFontSize,
+    textWidth,
+  })
+  const color = contrastOverlay(paintAccent(paint))
+  for (const p of placements) {
+    const span = document.createElement('span')
+    span.className = 'watermark'
+    span.textContent = text
+    span.style.fontSize = `${style.watermarkFontSize}px`
+    span.style.fontFamily = style.fontFamily || 'Consolas, monospace'
+    span.style.opacity = String(style.watermarkOpacity)
+    span.style.color = color
+    if (p.align === 'left') span.style.left = `${p.x}px`
+    else span.style.right = `${box.width - p.x}px`
+    span.style.top = `${p.y}px`
+    layer.appendChild(span)
+  }
+  return layer
 }
 
 function buildTitleBar(

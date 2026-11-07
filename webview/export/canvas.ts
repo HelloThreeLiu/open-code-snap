@@ -15,6 +15,18 @@ import {
   fontString,
   measureText,
 } from '../../src/core/geometry'
+import {
+  contrastOverlay,
+  gradientEndpoints,
+  mixColors,
+  resolveBackgroundPaint,
+  type BackgroundPaint,
+} from '../../src/core/background'
+import {
+  resolveWatermarkText,
+  watermarkIsEnabled,
+  watermarkPlacements,
+} from '../../src/core/watermark'
 
 export interface CanvasExportInput {
   layout: LayoutedCode
@@ -60,10 +72,9 @@ export function exportCanvasPng(input: CanvasExportInput): string {
   const ctx = canvas.getContext('2d')!
   ctx.setTransform(scale, 0, 0, scale, 0, 0)
 
-  // --- stage background ---
+  // --- stage background (F5) ---
   if (!style.transparentBackground) {
-    ctx.fillStyle = style.backgroundColor
-    ctx.fillRect(0, 0, W, H)
+    drawBackground(ctx, resolveBackgroundPaint(style), W, H)
   }
 
   // --- window with shadow ---
@@ -151,7 +162,95 @@ export function exportCanvasPng(input: CanvasExportInput): string {
     }
   })
 
+  // --- watermark (F6) ---
+  if (!style.transparentBackground && watermarkIsEnabled(style)) {
+    drawWatermark(ctx, style, input.windowTitle, resolveBackgroundPaint(style), W, H)
+  }
+
   return canvas.toDataURL('image/png')
+}
+
+/** Stage backdrop for the canvas export — same numbers as the CSS preview. */
+function drawBackground(
+  ctx: CanvasRenderingContext2D,
+  paint: BackgroundPaint,
+  W: number,
+  H: number
+): void {
+  const fillAll = (color: string): void => {
+    ctx.fillStyle = color
+    ctx.fillRect(0, 0, W, H)
+  }
+  switch (paint.type) {
+    case 'solid':
+      fillAll(paint.color)
+      break
+    case 'gradient': {
+      const e = gradientEndpoints(paint.angle, W, H)
+      const grad = ctx.createLinearGradient(e.x1, e.y1, e.x2, e.y2)
+      grad.addColorStop(0, paint.colorA)
+      grad.addColorStop(1, paint.colorB)
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, W, H)
+      break
+    }
+    case 'grid': {
+      fillAll(paint.color)
+      ctx.fillStyle = paint.lineColor
+      // Tiles start at the origin, matching CSS background-position 0 0.
+      for (let x = 0; x <= W; x += paint.spacing) {
+        ctx.fillRect(x, 0, paint.thickness, H)
+      }
+      for (let y = 0; y <= H; y += paint.spacing) {
+        ctx.fillRect(0, y, W, paint.thickness)
+      }
+      break
+    }
+    case 'dots': {
+      fillAll(paint.color)
+      ctx.fillStyle = paint.dotColor
+      // CSS radial-gradient tiles center the dot in each cell.
+      const c = paint.spacing / 2
+      for (let y = c; y <= H; y += paint.spacing) {
+        for (let x = c; x <= W; x += paint.spacing) {
+          ctx.beginPath()
+          ctx.arc(x, y, paint.radius, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      }
+      break
+    }
+  }
+}
+
+/** Watermark text over the stage — same geometry as the CSS preview. */
+function drawWatermark(
+  ctx: CanvasRenderingContext2D,
+  style: StyleConfig,
+  windowTitle: string,
+  paint: BackgroundPaint,
+  W: number,
+  H: number
+): void {
+  const text = resolveWatermarkText(style.watermarkText, { file: windowTitle })
+  if (!text) return
+  const font = fontString(style, { size: style.watermarkFontSize })
+  const textWidth = measureText(text, font)
+  const placements = watermarkPlacements({ width: W, height: H }, style.watermarkPosition, {
+    fontSize: style.watermarkFontSize,
+    textWidth,
+  })
+  const accent = paint.type === 'gradient' ? mixColors(paint.colorA, paint.colorB) : paint.color
+  ctx.save()
+  ctx.globalAlpha = style.watermarkOpacity
+  ctx.fillStyle = contrastOverlay(accent)
+  ctx.font = font
+  ctx.textBaseline = 'top'
+  for (const p of placements) {
+    ctx.textAlign = p.align
+    ctx.fillText(text, p.x, p.y)
+  }
+  ctx.restore()
 }
 
 function roundRect(
