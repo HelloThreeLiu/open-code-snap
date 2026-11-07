@@ -35,11 +35,14 @@ let highlighterPromise: Promise<Highlighter> | null = null
 const loadedLangs = new Set<string>()
 const loadedThemes = new Set<string>()
 
-function normalizeLang(languageId: string): string {
+/** Exported for unit tests only. */
+export function normalizeLang(languageId: string): string {
   if (!languageId) return PLAIN_LANG
+  // Lowercase ids match Shiki's bundled registry — "TypeScript" used to
+  // slip through with its original case and fall back to plain text (hang-⑥).
   const id = languageId.toLowerCase()
   if (id === 'plaintext' || id === 'plain_text' || id === 'plain') return PLAIN_LANG
-  return languageId
+  return id
 }
 
 async function getHighlighter(theme: string, lang: string): Promise<Highlighter> {
