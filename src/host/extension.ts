@@ -78,12 +78,15 @@ function showPanel(context: vscode.ExtensionContext): void {
         pushCurrentState()
         break
       case 'saveImage': {
-        if (
-          typeof msg.dataURL !== 'string' ||
-          !msg.dataURL.startsWith(PNG_DATAURL_PREFIX) ||
-          msg.dataURL.length > MAX_SAVE_IMAGE_CHARS
-        ) {
+        if (typeof msg.dataURL !== 'string' || !msg.dataURL.startsWith(PNG_DATAURL_PREFIX)) {
           vscode.window.showErrorMessage('Open Code Snap: 拒绝了非法的图片数据（未通过校验）。')
+          break
+        }
+        // Oversized but well-formed: a legit export the user can act on.
+        if (msg.dataURL.length > MAX_SAVE_IMAGE_CHARS) {
+          vscode.window.showErrorMessage(
+            'Open Code Snap: 导出图片过大，请降低缩放倍数或减少所选行数后重试。'
+          )
           break
         }
         void saveImage(context, msg.dataURL)
