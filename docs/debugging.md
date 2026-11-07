@@ -59,4 +59,4 @@ npm test
 | 面板空白 | webview bundle 未生成：检查 `dist/webview.js` 是否存在；DevTools Console 看 CSP 报错 |
 | 选代码没反应 | 主窗口 DEBUG CONSOLE 看是否有 host 报错；确认选区在**活动编辑器**里（非活动分组不触发） |
 | 导出图字体不对 | `editor.fontFamily` 里的字体系统未安装（如 macOS 专属字体）；在设置里显式配置 `openCodeSnap.fontFamily` |
-| 双引擎计时 dom 引擎报错 | dom-to-image 对跨域资源敏感；本项目全本地资源，如报错优先看 DevTools Console 的具体异常 |
+| 导出报错 / 图片异常 | Canvas 是唯一导出引擎（dom 兜底已于 0.3.0 移除，见 tech-design ADR D7）；优先看 DevTools Console 的具体异常与面板状态栏错误文案 |

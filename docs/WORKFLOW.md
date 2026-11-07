@@ -67,7 +67,7 @@
 - [ ] **与设计规范一致**：webview 改动对照 `webview/style.css` 既有令牌写法，不引入魔法值；
 - [ ] **配置项影响**（本项目的「数据结构」）：新增 / 修改 `contributes.configuration` 项？→ 新配置必须**带 default、可选生效**（旧配置缺省不得导致报错或行为回退），enum 变化评估旧值兼容；
 - [ ] **安全边界影响**：是否新增 webview 消息类型（`src/core/protocol.ts`）、文件写入、剪贴板访问、网络请求？→ 必须沿用既有防护层（CSP + 随机 nonce、`localResourceRoots` 仅 dist/、`asWebviewUri`、消息入参白名单校验），禁止旁路；
-- [ ] **依赖影响**：新增依赖需给出不可用现有能力实现的理由（默认惯例：**零新增运行时依赖**，当前仅 `shiki` 与 `dom-to-image-more`；**零网络请求**是本扩展的安全不变量，任何 fetch / XHR / `openExternal` 新增都属 L 级强制审查）；
+- [ ] **依赖影响**：新增依赖需给出不可用现有能力实现的理由（默认惯例：**零新增运行时依赖**，当前仅 `shiki`；**零网络请求**是本扩展的安全不变量，任何 fetch / XHR / `openExternal` 新增都属 L 级强制审查）；
 - [ ] **测试计划**：哪些纯逻辑值得落在 `src/core/` 并补 vitest 回归用例（参照 `tests/layout.test.ts`、`tests/theme-map.test.ts` 模式）；
 - [ ] **提交拆分计划**：L 级列出预期 commit 批次。
 

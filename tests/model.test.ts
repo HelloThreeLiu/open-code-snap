@@ -90,3 +90,16 @@ describe('new M1 style knobs', () => {
     expect(s.languageOverride).toBe('python')
   })
 })
+
+describe('retired keys in old settings.json (dom engine removed)', () => {
+  it('ignores a leftover exportEngine value and reads everything else', () => {
+    // VS Code keeps unknown keys in settings.json; reading must not break
+    // and the leftover value must not resurrect a removed field.
+    const s = readStyleFromConfig(
+      makeConfig({ exportEngine: 'dom', padding: 48 }, ['exportEngine', 'padding']),
+      {}
+    )
+    expect(s).toEqual({ ...DEFAULT_STYLE, padding: 48 })
+    expect('exportEngine' in s).toBe(false)
+  })
+})

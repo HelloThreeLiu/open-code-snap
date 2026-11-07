@@ -1,7 +1,7 @@
 {
   "name": "open-code-snap",
   "displayName": "Open Code Snap",
-  "description": "📷 Open-source code screenshot tool — select code, get a beautiful image. 高亮跟随编辑器主题，双导出引擎，不污染剪贴板。",
+  "description": "📷 Open-source code screenshot tool — select code, get a beautiful image. 高亮跟随编辑器主题，Canvas 自绘导出，不污染剪贴板。",
   "version": "0.2.0",
   "publisher": "open-code-snap",
   "license": "MIT",
@@ -162,15 +162,6 @@
           ],
           "default": 2,
           "description": "导出缩放倍数"
-        },
-        "openCodeSnap.exportEngine": {
-          "type": "string",
-          "enum": [
-            "canvas",
-            "dom"
-          ],
-          "default": "canvas",
-          "markdownDescription": "导出引擎：`canvas` 自绘（快、推荐）/ `dom` dom-to-image（兜底）"
         }
       }
     }
@@ -190,7 +181,6 @@
     "vitest": "^3.0.0"
   },
   "dependencies": {
-    "dom-to-image-more": "^2.13.0",
     "shiki": "^3.0.0"
   },
   "icon": "media/icon.png"

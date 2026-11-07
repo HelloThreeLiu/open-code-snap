@@ -41,10 +41,15 @@ describe('validateSettingUpdate', () => {
   })
 
   it('rejects enum violations', () => {
-    expect(validateSettingUpdate('exportEngine', 'svg').ok).toBe(false)
     expect(validateSettingUpdate('windowStyle', 'linux').ok).toBe(false)
+    expect(validateSettingUpdate('lineNumbers', 'numbered').ok).toBe(false)
     expect(validateSettingUpdate('exportScale', 4).ok).toBe(false)
     expect(validateSettingUpdate('exportScale', 2).ok).toBe(true)
+  })
+
+  it('rejects the retired exportEngine key (dom engine removed)', () => {
+    expect(validateSettingUpdate('exportEngine', 'canvas').ok).toBe(false)
+    expect(validateSettingUpdate('exportEngine', 'dom').ok).toBe(false)
   })
 
   it('rejects wrong types', () => {
