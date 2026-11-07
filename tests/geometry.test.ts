@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { gutterWidth, measureText, setMeasureTextImpl } from '../src/core/geometry'
+import { gutterWidth, measureText, setMeasureTextImpl, stageInsets, titleBarHeight } from '../src/core/geometry'
 import { DEFAULT_STYLE } from '../src/core/model'
 import type { StyleConfig } from '../src/core/protocol'
 
@@ -43,5 +43,46 @@ describe('gutterWidth', () => {
   it('grows with line count digits', () => {
     // '9' -> 8px, '99' -> 16px
     expect(gutterWidth(9, style())).toBeLessThan(gutterWidth(99, style()))
+  })
+})
+
+describe('stageInsets (hang-④ negative shadow offset)', () => {
+  it('leaves symmetric padding when the shadow has no offset', () => {
+    const i = stageInsets(style({ shadowBlur: 40, shadowOffsetX: 0, shadowOffsetY: 0 }))
+    // safety = ceil(40/2) = 20
+    expect(i).toEqual({ top: 52, right: 52, bottom: 52, left: 52 })
+  })
+
+  it('reserves extra room only in the direction the shadow points (positive Y)', () => {
+    const i = stageInsets(style({ shadowBlur: 40, shadowOffsetY: 20 }))
+    expect(i.top).toBe(52)
+    expect(i.bottom).toBe(72) // 52 + 20
+  })
+
+  it('moves the shadow margin to the top for negative Y (regression)', () => {
+    const i = stageInsets(style({ shadowBlur: 40, shadowOffsetY: -30 }))
+    expect(i.top).toBe(82) // 52 + 30 — was clipped before the fix
+    expect(i.bottom).toBe(52) // no extra room downward anymore
+  })
+
+  it('moves the shadow margin left/right with X offset', () => {
+    const i = stageInsets(style({ shadowBlur: 40, shadowOffsetX: -25 }))
+    expect(i.left).toBe(77) // 52 + 25
+    expect(i.right).toBe(52)
+  })
+
+  it('rounds the safety margin up', () => {
+    const i = stageInsets(style({ shadowBlur: 33, shadowOffsetY: 0 }))
+    expect(i.top).toBe(32 + 17) // ceil(33/2)
+  })
+})
+
+describe('titleBarHeight', () => {
+  it('is 0 when the whole chrome is hidden', () => {
+    expect(titleBarHeight(style({ windowStyle: 'none', showWindowTitle: false }))).toBe(0)
+  })
+
+  it('scales with font size when chrome is shown', () => {
+    expect(titleBarHeight(style({ fontSize: 14 }))).toBe(31)
   })
 })

@@ -19,10 +19,12 @@ export interface Insets {
 export function stageInsets(style: StyleConfig): Insets {
   const safety = Math.ceil(style.shadowBlur / 2)
   return {
-    top: style.padding + safety,
-    // Shadow extends horizontally by blur/2 plus |offset| in its direction.
+    // Shadow extends vertically by blur/2 plus |offset| in its direction —
+    // a negative offset pushes the shadow UP, so the top needs the room
+    // (hang-④: it previously got none, clipping the glow).
+    top: style.padding + safety + Math.max(0, -style.shadowOffsetY),
     right: style.padding + safety + Math.max(0, style.shadowOffsetX),
-    bottom: style.padding + safety + Math.abs(style.shadowOffsetY),
+    bottom: style.padding + safety + Math.max(0, style.shadowOffsetY),
     left: style.padding + safety + Math.max(0, -style.shadowOffsetX),
   }
 }
