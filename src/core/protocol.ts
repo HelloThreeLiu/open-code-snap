@@ -29,6 +29,12 @@ export interface SnippetRequest {
 /** Line number rendering mode (PRD F2.3). */
 export type LineNumbersMode = 'off' | 'relative' | 'real'
 
+/** Stage backdrop kind (PRD F5). Solid = the pre-0.3 single-color behavior. */
+export type BackgroundType = 'solid' | 'gradient' | 'grid' | 'dots'
+
+/** Watermark anchor; `tile` repeats across the whole stage (PRD F6). */
+export type WatermarkPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'tile'
+
 /** All user-tunable style knobs. Mirrors `openCodeSnap.*` settings. */
 export interface StyleConfig {
   /** Shiki theme id; empty = follow VS Code theme. */
@@ -40,6 +46,18 @@ export interface StyleConfig {
   languageOverride: string
   backgroundColor: string
   transparentBackground: boolean
+  /** Backdrop kind; solid uses backgroundColor alone (PRD F5). */
+  backgroundType: BackgroundType
+  gradientColorA: string
+  gradientColorB: string
+  /** CSS linear-gradient angle: 0deg = to top, 90deg = to right. */
+  gradientAngle: number
+  /** Watermark text template; empty = no watermark (PRD F6). */
+  watermarkText: string
+  watermarkPosition: WatermarkPosition
+  watermarkFontSize: number
+  /** 0.05..1 */
+  watermarkOpacity: number
   padding: number
   borderRadius: number
   shadowColor: string

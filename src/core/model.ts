@@ -9,6 +9,14 @@ export const DEFAULT_STYLE: StyleConfig = {
   languageOverride: '',
   backgroundColor: '#abb8c3',
   transparentBackground: false,
+  backgroundType: 'solid',
+  gradientColorA: '#7093FF',
+  gradientColorB: '#B379F5',
+  gradientAngle: 135,
+  watermarkText: '',
+  watermarkPosition: 'bottom-right',
+  watermarkFontSize: 14,
+  watermarkOpacity: 0.5,
   padding: 32,
   borderRadius: 8,
   shadowColor: 'rgba(0, 0, 0, 0.55)',
@@ -77,6 +85,14 @@ export function readStyleFromConfig(
   s.languageOverride = get('languageOverride', '')
   s.backgroundColor = get('backgroundColor', DEFAULT_STYLE.backgroundColor)
   s.transparentBackground = get('transparentBackground', false)
+  s.backgroundType = get('backgroundType', DEFAULT_STYLE.backgroundType)
+  s.gradientColorA = get('gradientColorA', DEFAULT_STYLE.gradientColorA)
+  s.gradientColorB = get('gradientColorB', DEFAULT_STYLE.gradientColorB)
+  s.gradientAngle = get('gradientAngle', DEFAULT_STYLE.gradientAngle)
+  s.watermarkText = get('watermarkText', DEFAULT_STYLE.watermarkText)
+  s.watermarkPosition = get('watermarkPosition', DEFAULT_STYLE.watermarkPosition)
+  s.watermarkFontSize = get('watermarkFontSize', DEFAULT_STYLE.watermarkFontSize)
+  s.watermarkOpacity = get('watermarkOpacity', DEFAULT_STYLE.watermarkOpacity)
   s.padding = get('padding', DEFAULT_STYLE.padding)
   s.borderRadius = get('borderRadius', DEFAULT_STYLE.borderRadius)
   s.shadowColor = get('shadowColor', DEFAULT_STYLE.shadowColor)
