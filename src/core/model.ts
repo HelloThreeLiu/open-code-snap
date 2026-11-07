@@ -20,7 +20,6 @@ export const DEFAULT_STYLE: StyleConfig = {
   lineHeight: 1.6,
   ligatures: true,
   exportScale: 2,
-  exportEngine: 'canvas',
 }
 
 /** Subset of vscode.WorkspaceConfiguration#inspect the reader relies on. */
@@ -89,7 +88,6 @@ export function readStyleFromConfig(
   s.lineHeight = get('lineHeight', DEFAULT_STYLE.lineHeight)
   s.ligatures = get('ligatures', true)
   s.exportScale = get('exportScale', DEFAULT_STYLE.exportScale)
-  s.exportEngine = get('exportEngine', DEFAULT_STYLE.exportEngine)
   // Follow editor font when not overridden.
   if (!s.fontFamily && editorConfig.fontFamily) {
     s.fontFamily = editorConfig.fontFamily

@@ -51,7 +51,6 @@ export interface StyleConfig {
   lineHeight: number
   ligatures: boolean
   exportScale: 1 | 2 | 3
-  exportEngine: 'canvas' | 'dom'
 }
 
 /** Resolved theme info the host sends along (so webview does not need vscode API). */

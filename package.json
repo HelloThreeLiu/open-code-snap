@@ -162,15 +162,6 @@
           ],
           "default": 2,
           "description": "导出缩放倍数"
-        },
-        "openCodeSnap.exportEngine": {
-          "type": "string",
-          "enum": [
-            "canvas",
-            "dom"
-          ],
-          "default": "canvas",
-          "markdownDescription": "导出引擎：`canvas` 自绘（快、推荐）/ `dom` dom-to-image（兜底）"
         }
       }
     }
@@ -190,7 +181,6 @@
     "vitest": "^3.0.0"
   },
   "dependencies": {
-    "dom-to-image-more": "^2.13.0",
     "shiki": "^3.0.0"
   },
   "icon": "media/icon.png"

@@ -36,7 +36,6 @@ export const SETTING_RULES: Record<string, SettingRule> = {
   ligatures: { type: 'boolean' },
   tabSize: { type: 'number', min: 0, max: 16 },
   exportScale: { type: 'number', enum: [1, 2, 3] },
-  exportEngine: { type: 'string', enum: ['canvas', 'dom'] },
 }
 
 /** Longest string we accept; theme ids and font lists stay far below this. */

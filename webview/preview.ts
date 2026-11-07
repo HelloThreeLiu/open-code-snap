@@ -5,8 +5,9 @@ import type { StyleConfig } from '../src/core/protocol'
 import { stageInsets, titleBarHeight, WINDOW_INNER_PAD, GUTTER_GAP } from '../src/core/geometry'
 
 /**
- * Render the preview DOM. Everything the dom-to-image exporter captures
- * lives under #stage; the canvas exporter reads the same inputs instead.
+ * Render the preview DOM under #stage — the visual source of truth.
+ * The canvas exporter consumes the same layout/geometry inputs instead of
+ * reading back this DOM, so preview and export stay 1:1 by construction.
  */
 export function renderPreview(
   container: HTMLElement,

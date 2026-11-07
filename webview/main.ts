@@ -8,7 +8,6 @@ import { CURATED_LANGUAGES } from '../src/core/languages'
 import { gutterWidth, setMeasureTextImpl } from '../src/core/geometry'
 import { renderPreview } from './preview'
 import { exportCanvasPng } from './export/canvas'
-import { exportDomPng } from './export/domtoimage'
 
 declare function acquireVsCodeApi(): { postMessage(msg: WebviewMessage): void }
 
@@ -146,22 +145,6 @@ function buildShell(): void {
   transparentText.textContent = '透明'
   transparentLabel.append(transparent, transparentText)
 
-  const engineSelect = document.createElement('select')
-  engineSelect.id = 'ctl-engine'
-  engineSelect.title = 'Export engine'
-  for (const [value, label] of [
-    ['canvas', 'Canvas 引擎'],
-    ['dom', 'DOM 引擎'],
-  ] as const) {
-    const opt = document.createElement('option')
-    opt.value = value
-    opt.textContent = label
-    engineSelect.appendChild(opt)
-  }
-  engineSelect.addEventListener('change', () => {
-    writeSetting('exportEngine', engineSelect.value)
-  })
-
   const scaleSelect = document.createElement('select')
   scaleSelect.id = 'ctl-scale'
   scaleSelect.title = 'Export scale'
@@ -185,25 +168,7 @@ function buildShell(): void {
   btnCopy.textContent = '复制到剪贴板'
   btnCopy.addEventListener('click', () => void exportImage('copy'))
 
-  const btnBench = document.createElement('button')
-  btnBench.id = 'btn-bench'
-  btnBench.className = 'ghost'
-  btnBench.textContent = '双引擎计时'
-  btnBench.title = 'M0: measure both export engines'
-  btnBench.addEventListener('click', () => void runBenchmark())
-
-  toolbar.append(
-    themeSelect,
-    langSelect,
-    lineNoSelect,
-    windowSelect,
-    transparentLabel,
-    engineSelect,
-    scaleSelect,
-    btnSave,
-    btnCopy,
-    btnBench
-  )
+  toolbar.append(themeSelect, langSelect, lineNoSelect, windowSelect, transparentLabel, scaleSelect, btnSave, btnCopy)
 
   const previewWrap = document.createElement('div')
   previewWrap.id = 'preview-wrap'
@@ -316,7 +281,6 @@ function syncToolbar(style: StyleConfig): void {
   const lineNoSelect = document.getElementById('ctl-lineno') as HTMLSelectElement
   const windowSelect = document.getElementById('ctl-window') as HTMLSelectElement
   const transparent = document.querySelector<HTMLInputElement>('#ctl-transparent input')
-  const engineSelect = document.getElementById('ctl-engine') as HTMLSelectElement
   const scaleSelect = document.getElementById('ctl-scale') as HTMLSelectElement
   // Hand-set values outside the curated lists (e.g. languageOverride: "vue")
   // must stay visible instead of collapsing to a blank option (review N-4).
@@ -327,7 +291,6 @@ function syncToolbar(style: StyleConfig): void {
   lineNoSelect.value = style.lineNumbers
   windowSelect.value = style.windowStyle
   if (transparent) transparent.checked = style.transparentBackground
-  engineSelect.value = style.exportEngine
   scaleSelect.value = String(style.exportScale)
 }
 
@@ -347,12 +310,6 @@ function dataUrlToBlob(dataURL: string): Blob {
 
 async function produceDataUrl(): Promise<string> {
   if (!cache) throw new Error('nothing rendered yet')
-  const style = cache.style
-  if (style.exportEngine === 'dom') {
-    const stage = document.getElementById('stage')
-    if (!stage) throw new Error('preview not ready')
-    return exportDomPng(stage, style)
-  }
   return exportCanvasPng(cache)
 }
 
@@ -363,39 +320,16 @@ async function exportImage(action: 'save' | 'copy'): Promise<void> {
     const ms = Math.round(performance.now() - t0)
     if (action === 'save') {
       vscode.postMessage({ type: 'saveImage', dataURL })
-      setStatus(`已生成，请在弹出的保存对话框中选择位置（${cache!.style.exportEngine} 引擎，${ms} ms）`)
+      setStatus(`已生成，请在弹出的保存对话框中选择位置（canvas 引擎，${ms} ms）`)
     } else {
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': dataUrlToBlob(dataURL) })])
       flashFx()
-      setStatus(`已复制到剪贴板（${cache!.style.exportEngine} 引擎，${ms} ms，${Math.round((dataURL.length * 3) / 4 / 1024)} KB）——现在可去任意位置 Ctrl+V 粘贴`)
+      setStatus(`已复制到剪贴板（canvas 引擎，${ms} ms，${Math.round((dataURL.length * 3) / 4 / 1024)} KB）——现在可去任意位置 Ctrl+V 粘贴`)
     }
   } catch (err) {
     setStatus(`❌ 导出失败: ${String(err)}`)
     vscode.postMessage({ type: 'notify', level: 'error', text: `Export failed: ${String(err)}` })
   }
-}
-
-/** M0 acceptance: measure both engines on the current snippet. */
-async function runBenchmark(): Promise<void> {
-  if (!cache || cache.layout.lines.length === 0) {
-    setStatus('没有可导出的代码')
-    return
-  }
-  const stage = document.getElementById('stage')!
-  const style = cache.style
-
-  const t1 = performance.now()
-  const canvasUrl = exportCanvasPng(cache)
-  const canvasMs = Math.round(performance.now() - t1)
-
-  const t2 = performance.now()
-  const domUrl = await exportDomPng(stage, { ...style, exportEngine: 'dom' })
-  const domMs = Math.round(performance.now() - t2)
-
-  const canvasKB = Math.round((canvasUrl.length * 3) / 4 / 1024)
-  const domKB = Math.round((domUrl.length * 3) / 4 / 1024)
-  setStatus(`⏱ canvas: ${canvasMs} ms / ${canvasKB} KB  ·  dom: ${domMs} ms / ${domKB} KB（${cache.layout.lines.length} 行）`)
-  console.table({ canvas: { ms: canvasMs, KB: canvasKB }, dom: { ms: domMs, KB: domKB } })
 }
 
 function flashFx(): void {
