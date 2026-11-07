@@ -63,75 +63,109 @@ function writeSetting(key: string, value: string | number | boolean): void {
 
 // ---------------------------------------------------------------- UI shell
 
+function makeSelect(
+  id: string,
+  title: string,
+  options: readonly (readonly [string, string])[],
+  onChange: (value: string) => void
+): HTMLSelectElement {
+  const select = document.createElement('select')
+  select.id = id
+  select.title = title
+  for (const [value, label] of options) {
+    const opt = document.createElement('option')
+    opt.value = value
+    opt.textContent = label
+    select.appendChild(opt)
+  }
+  select.addEventListener('change', () => onChange(select.value))
+  return select
+}
+
+/** Number input that clamps into [min, max]; empty/garbage keeps the old value. */
+function makeNumberInput(
+  id: string,
+  title: string,
+  min: number,
+  max: number,
+  step: number,
+  onChange: (value: number) => void
+): HTMLInputElement {
+  const input = document.createElement('input')
+  input.id = id
+  input.type = 'number'
+  input.title = title
+  input.min = String(min)
+  input.max = String(max)
+  input.step = String(step)
+  input.addEventListener('change', () => {
+    const n = Number(input.value)
+    if (!Number.isFinite(n)) return
+    onChange(Math.min(max, Math.max(min, n)))
+  })
+  return input
+}
+
+function makeColorInput(id: string, title: string, onChange: (value: string) => void): HTMLInputElement {
+  const input = document.createElement('input')
+  input.id = id
+  input.type = 'color'
+  input.title = title
+  input.addEventListener('change', () => onChange(input.value))
+  return input
+}
+
+function toolbarSep(): HTMLElement {
+  const sep = document.createElement('span')
+  sep.className = 'toolbar-sep'
+  return sep
+}
+
 function buildShell(): void {
   app.replaceChildren()
 
   const toolbar = document.createElement('div')
   toolbar.id = 'toolbar'
 
-  const themeSelect = document.createElement('select')
-  themeSelect.id = 'ctl-theme'
-  themeSelect.title = 'Theme'
-  const follow = document.createElement('option')
-  follow.value = ''
-  follow.textContent = '跟随编辑器主题'
-  themeSelect.appendChild(follow)
-  for (const id of CURATED_THEMES) {
-    const opt = document.createElement('option')
-    opt.value = id
-    opt.textContent = id
-    themeSelect.appendChild(opt)
-  }
-  themeSelect.addEventListener('change', () => {
-    writeSetting('theme', themeSelect.value)
-  })
+  // --- row 1: content & export ---
+  const row1 = document.createElement('div')
+  row1.className = 'toolbar-row'
 
-  const langSelect = document.createElement('select')
-  langSelect.id = 'ctl-lang'
-  langSelect.title = 'Language override'
-  for (const { id, label } of CURATED_LANGUAGES) {
-    const opt = document.createElement('option')
-    opt.value = id
-    opt.textContent = label
-    langSelect.appendChild(opt)
-  }
-  langSelect.addEventListener('change', () => {
-    writeSetting('languageOverride', langSelect.value)
-  })
+  const themeSelect = makeSelect(
+    'ctl-theme',
+    'Theme',
+    [['', '跟随编辑器主题'], ...CURATED_THEMES.map((id) => [id, id] as const)],
+    (v) => writeSetting('theme', v)
+  )
 
-  const lineNoSelect = document.createElement('select')
-  lineNoSelect.id = 'ctl-lineno'
-  lineNoSelect.title = 'Line numbers'
-  for (const [value, label] of [
-    ['off', '无行号'],
-    ['relative', '相对行号'],
-    ['real', '真实行号'],
-  ] as const) {
-    const opt = document.createElement('option')
-    opt.value = value
-    opt.textContent = label
-    lineNoSelect.appendChild(opt)
-  }
-  lineNoSelect.addEventListener('change', () => {
-    writeSetting('lineNumbers', lineNoSelect.value)
-  })
+  const langSelect = makeSelect(
+    'ctl-lang',
+    'Language override',
+    CURATED_LANGUAGES.map(({ id, label }) => [id, label] as const),
+    (v) => writeSetting('languageOverride', v)
+  )
 
-  const windowSelect = document.createElement('select')
-  windowSelect.id = 'ctl-window'
-  windowSelect.title = 'Window style'
-  for (const [value, label] of [
-    ['macos', 'macOS 窗口'],
-    ['windows', 'Windows 窗口'],
-    ['none', '无窗口'],
-  ] as const) {
-    const opt = document.createElement('option')
-    opt.value = value
-    opt.textContent = label
-    windowSelect.appendChild(opt)
-  }
-  windowSelect.addEventListener('change', () => {
-    writeSetting('windowStyle', windowSelect.value)
-  })
+  const lineNoSelect = makeSelect(
+    'ctl-lineno',
+    'Line numbers',
+    [
+      ['off', '无行号'],
+      ['relative', '相对行号'],
+      ['real', '真实行号'],
+    ],
+    (v) => writeSetting('lineNumbers', v)
+  )
+
+  const windowSelect = makeSelect(
+    'ctl-window',
+    'Window style',
+    [
+      ['macos', 'macOS 窗口'],
+      ['windows', 'Windows 窗口'],
+      ['none', '无窗口'],
+    ],
+    (v) => writeSetting('windowStyle', v)
+  )
 
   const transparentLabel = document.createElement('label')
   transparentLabel.id = 'ctl-transparent'
@@ -145,18 +179,16 @@ function buildShell(): void {
   transparentText.textContent = '透明'
   transparentLabel.append(transparent, transparentText)
 
-  const scaleSelect = document.createElement('select')
-  scaleSelect.id = 'ctl-scale'
-  scaleSelect.title = 'Export scale'
-  for (const s of [1, 2, 3] as const) {
-    const opt = document.createElement('option')
-    opt.value = String(s)
-    opt.textContent = `${s}x`
-    scaleSelect.appendChild(opt)
-  }
-  scaleSelect.addEventListener('change', () => {
-    writeSetting('exportScale', Number(scaleSelect.value))
-  })
+  const scaleSelect = makeSelect(
+    'ctl-scale',
+    'Export scale',
+    [
+      ['1', '1x'],
+      ['2', '2x'],
+      ['3', '3x'],
+    ],
+    (v) => writeSetting('exportScale', Number(v))
+  )
 
   const btnSave = document.createElement('button')
   btnSave.id = 'btn-save'
@@ -168,7 +200,57 @@ function buildShell(): void {
   btnCopy.textContent = '复制到剪贴板'
   btnCopy.addEventListener('click', () => void exportImage('copy'))
 
-  toolbar.append(themeSelect, langSelect, lineNoSelect, windowSelect, transparentLabel, scaleSelect, btnSave, btnCopy)
+  row1.append(themeSelect, langSelect, lineNoSelect, windowSelect, transparentLabel, scaleSelect, btnSave, btnCopy)
+
+  // --- row 2: backdrop & watermark (F5/F6) ---
+  const row2 = document.createElement('div')
+  row2.className = 'toolbar-row'
+
+  const bgTypeSelect = makeSelect(
+    'ctl-bgtype',
+    'Background type',
+    [
+      ['solid', '纯色背景'],
+      ['gradient', '渐变背景'],
+      ['grid', '网格背景'],
+      ['dots', '点阵背景'],
+    ],
+    (v) => writeSetting('backgroundType', v)
+  )
+
+  const gradA = makeColorInput('ctl-grad-a', '渐变起始色', (v) => writeSetting('gradientColorA', v))
+  const gradB = makeColorInput('ctl-grad-b', '渐变结束色', (v) => writeSetting('gradientColorB', v))
+  const gradAngle = makeNumberInput('ctl-grad-angle', '渐变角度（0-360）', 0, 360, 5, (v) =>
+    writeSetting('gradientAngle', v)
+  )
+
+  const wmText = document.createElement('input')
+  wmText.id = 'ctl-wm-text'
+  wmText.type = 'text'
+  wmText.title = '水印文字（支持 {date} {file} 模板变量，留空不显示）'
+  wmText.placeholder = '水印，如 @me {date}'
+  wmText.addEventListener('change', () => writeSetting('watermarkText', wmText.value))
+
+  const wmPos = makeSelect(
+    'ctl-wm-pos',
+    'Watermark position',
+    [
+      ['top-left', '水印：左上'],
+      ['top-right', '水印：右上'],
+      ['bottom-left', '水印：左下'],
+      ['bottom-right', '水印：右下'],
+      ['tile', '水印：平铺'],
+    ],
+    (v) => writeSetting('watermarkPosition', v)
+  )
+  const wmSize = makeNumberInput('ctl-wm-size', '水印字号', 8, 72, 1, (v) => writeSetting('watermarkFontSize', v))
+  const wmOpacity = makeNumberInput('ctl-wm-opacity', '水印透明度', 0.05, 1, 0.05, (v) =>
+    writeSetting('watermarkOpacity', v)
+  )
+
+  row2.append(bgTypeSelect, gradA, gradB, gradAngle, toolbarSep(), wmText, wmPos, wmSize, wmOpacity)
+
+  toolbar.append(row1, row2)
 
   const previewWrap = document.createElement('div')
   previewWrap.id = 'preview-wrap'
@@ -292,6 +374,24 @@ function syncToolbar(style: StyleConfig): void {
   windowSelect.value = style.windowStyle
   if (transparent) transparent.checked = style.transparentBackground
   scaleSelect.value = String(style.exportScale)
+
+  // --- row 2 (F5/F6) ---
+  const bgType = document.getElementById('ctl-bgtype') as HTMLSelectElement
+  const gradA = document.getElementById('ctl-grad-a') as HTMLInputElement
+  const gradB = document.getElementById('ctl-grad-b') as HTMLInputElement
+  const gradAngle = document.getElementById('ctl-grad-angle') as HTMLInputElement
+  const wmText = document.getElementById('ctl-wm-text') as HTMLInputElement
+  const wmPos = document.getElementById('ctl-wm-pos') as HTMLSelectElement
+  const wmSize = document.getElementById('ctl-wm-size') as HTMLInputElement
+  const wmOpacity = document.getElementById('ctl-wm-opacity') as HTMLInputElement
+  bgType.value = style.backgroundType
+  gradA.value = style.gradientColorA
+  gradB.value = style.gradientColorB
+  gradAngle.value = String(style.gradientAngle)
+  wmText.value = style.watermarkText
+  wmPos.value = style.watermarkPosition
+  wmSize.value = String(style.watermarkFontSize)
+  wmOpacity.value = String(style.watermarkOpacity)
 }
 
 function setStatus(text: string): void {

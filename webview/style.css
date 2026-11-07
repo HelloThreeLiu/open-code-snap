@@ -27,32 +27,69 @@ body {
   height: 100%;
 }
 
-/* --- toolbar --- */
+/* --- toolbar (two grouped rows since M2) --- */
 
 #toolbar {
   display: flex;
-  gap: 8px;
-  align-items: center;
+  flex-direction: column;
+  gap: 6px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--vscode-panel-border, #333);
+}
+
+.toolbar-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
   flex-wrap: wrap;
 }
 
+.toolbar-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--vscode-panel-border, #333);
+}
+
 #toolbar select,
-#toolbar button {
+#toolbar button,
+#toolbar input[type='number'],
+#toolbar input[type='text'] {
   background: var(--vscode-dropdown-background, #2d2d2d);
   color: var(--vscode-dropdown-foreground, #ccc);
   border: 1px solid var(--vscode-dropdown-border, #555);
   border-radius: 4px;
   padding: 4px 10px;
   font-size: 12px;
+}
+
+#toolbar input[type='number'] {
+  width: 64px;
+  padding: 4px 6px;
+}
+
+#toolbar input[type='text'] {
+  width: 160px;
+}
+
+#toolbar input[type='color'] {
+  width: 34px;
+  height: 26px;
+  padding: 1px 2px;
+  border: 1px solid var(--vscode-dropdown-border, #555);
+  border-radius: 4px;
+  background: var(--vscode-dropdown-background, #2d2d2d);
   cursor: pointer;
+}
+
+#toolbar input::placeholder {
+  color: var(--vscode-input-placeholderForeground, #888);
 }
 
 #toolbar button {
   background: var(--vscode-button-background, #0e639c);
   color: var(--vscode-button-foreground, #fff);
   border: none;
+  cursor: pointer;
 }
 
 #toolbar button:hover {
