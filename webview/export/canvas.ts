@@ -15,6 +15,7 @@ import {
   fontString,
   measureText,
 } from '../../src/core/geometry'
+import { MARK_COLORS, type LineMark } from '../../src/core/diff'
 import {
   contrastOverlay,
   gradientEndpoints,
@@ -35,6 +36,8 @@ export interface CanvasExportInput {
   /** Measured gutter width, shared with the preview. */
   gutterWidth: number
   windowTitle: string
+  /** F7 diff marks; rows with a mark get the wash + gutter accent. */
+  lineMarks: Record<number, LineMark>
 }
 
 /** Render to a PNG dataURL. Synchronous, typically a few ms per 100 lines. */
@@ -130,15 +133,24 @@ export function exportCanvasPng(input: CanvasExportInput): string {
     }
   }
 
-  // --- line numbers ---
+  // --- line numbers + F7 row washes ---
   if (style.lineNumbers !== 'off' && layout.lines.length > 0) {
-    ctx.fillStyle = fg
-    ctx.globalAlpha = 0.45
     ctx.font = baseFont
     ctx.textAlign = 'right'
     const numX = wx + pad + input.gutterWidth - GUTTER_GAP
     layout.lines.forEach((line, i) => {
       const y = wy + titleH + pad + i * lineH
+      const mark = input.lineMarks[i]
+      if (mark) {
+        // Full-row wash behind everything drawn afterwards.
+        ctx.fillStyle = MARK_COLORS[mark].rowBg
+        ctx.fillRect(wx, y, windowW, lineH)
+        ctx.fillStyle = MARK_COLORS[mark].accent
+        ctx.globalAlpha = 0.9
+      } else {
+        ctx.fillStyle = fg
+        ctx.globalAlpha = 0.45
+      }
       ctx.fillText(String(lineNumberFor(line, style.lineNumbers)), numX, y)
     })
     ctx.globalAlpha = 1

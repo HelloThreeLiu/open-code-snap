@@ -6,6 +6,7 @@ import { highlightCode, type HighlightResult } from '../src/core/highlight'
 import { resolveTheme, CURATED_THEMES } from '../src/core/theme-map'
 import { CURATED_LANGUAGES } from '../src/core/languages'
 import { gutterWidth, setMeasureTextImpl } from '../src/core/geometry'
+import { nextMark, type LineMark } from '../src/core/diff'
 import { renderPreview } from './preview'
 import { exportCanvasPng } from './export/canvas'
 
@@ -31,6 +32,8 @@ interface State {
   titleOverride: string | null
   /** documentKey of the current request, to detect file switches. */
   lastDocKey: string
+  /** F7 diff marks by layout line index; cleared on every new snapshot. */
+  lineMarks: Record<number, LineMark>
 }
 
 const state: State = {
@@ -39,6 +42,7 @@ const state: State = {
   themeContext: { editorThemeName: '' },
   titleOverride: null,
   lastDocKey: '',
+  lineMarks: {},
 }
 
 interface RenderCache {
@@ -48,6 +52,8 @@ interface RenderCache {
   gutterWidth: number
   themeId: string
   windowTitle: string
+  /** Same reference as state.lineMarks — exports must see live marks. */
+  lineMarks: Record<number, LineMark>
 }
 
 let cache: RenderCache | null = null
@@ -307,6 +313,7 @@ async function rerender(): Promise<void> {
     gutterWidth: gutterWidth(maxNo, style),
     themeId,
     windowTitle,
+    lineMarks: state.lineMarks,
   }
 
   const preview = document.getElementById('preview')!
@@ -316,6 +323,14 @@ async function rerender(): Promise<void> {
     style,
     windowTitle,
     gutterWidth: cache.gutterWidth,
+    lineMarks: state.lineMarks,
+    // F7: cycle unmarked -> added -> removed on the line number.
+    onToggleMark: (i) => {
+      const next = nextMark(state.lineMarks[i])
+      if (next) state.lineMarks[i] = next
+      else delete state.lineMarks[i]
+      void rerender()
+    },
     // Live sync keeps exports correct even mid-edit (no blur dependency).
     onTitleInput: (text) => {
       state.titleOverride = text
@@ -455,6 +470,9 @@ window.addEventListener('message', ({ data }: MessageEvent<HostMessage>) => {
       state.titleOverride = null
       state.lastDocKey = data.request.documentKey
     }
+    // Every update is a new snapshot: old line indices no longer map to the
+    // marked code, so F7 marks never leak across selections (plan §四).
+    state.lineMarks = {}
     state.request = data.request
     state.style = data.style
     state.themeContext = data.themeContext

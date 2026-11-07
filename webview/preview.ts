@@ -3,6 +3,7 @@ import { lineNumberFor } from '../src/core/layout'
 import type { HighlightResult } from '../src/core/highlight'
 import type { StyleConfig } from '../src/core/protocol'
 import { stageInsets, titleBarHeight, WINDOW_INNER_PAD, GUTTER_GAP, fontString, measureText } from '../src/core/geometry'
+import { MARK_COLORS, type LineMark } from '../src/core/diff'
 import {
   contrastOverlay,
   cssPaintSizes,
@@ -47,6 +48,10 @@ export function renderPreview(
     windowTitle: string
     /** Measured gutter width, shared with the canvas exporter. */
     gutterWidth: number
+    /** F7 diff marks by line index; keys without a mark render normally. */
+    lineMarks: Record<number, LineMark>
+    /** Click on a line number cycles its mark (F7). */
+    onToggleMark?: (lineIndex: number) => void
     /** Live title sync while typing (no rerender; keeps exports fresh). */
     onTitleInput?: (text: string) => void
     /** Title committed (Enter/blur) — triggers a rerender. */
@@ -97,7 +102,11 @@ export function renderPreview(
     code.appendChild(empty)
   } else {
     layout.lines.forEach((line, i) => {
-      code.appendChild(buildLine(line, highlight.lines[i], style, highlight.colors.fg, gutterWidth))
+      code.appendChild(
+        buildLine(line, highlight.lines[i], style, highlight.colors.fg, gutterWidth, input.lineMarks[i], () =>
+          input.onToggleMark?.(i)
+        )
+      )
     })
   }
   win.appendChild(code)
@@ -225,21 +234,36 @@ function buildLine(
   themed: { tokens: { text: string; color: string; italic: boolean; bold: boolean }[] } | undefined,
   style: StyleConfig,
   fg: string,
-  gutterW: number
+  gutterW: number,
+  mark: LineMark | undefined,
+  onToggle: () => void
 ): HTMLElement {
   const row = document.createElement('div')
   row.className = 'line'
+  if (mark) {
+    row.style.background = MARK_COLORS[mark].rowBg
+  }
 
   if (style.lineNumbers !== 'off') {
     const ln = document.createElement('span')
     ln.className = 'ln'
-    ln.style.color = fg
-    ln.style.opacity = '0.45'
+    if (mark) {
+      ln.style.color = MARK_COLORS[mark].accent
+      ln.style.opacity = '0.9'
+      ln.title = '点击取消 +/− 标记'
+    } else {
+      ln.style.color = fg
+      ln.style.opacity = '0.45'
+      ln.title = '点击标记为新增(+)，再点为删除(−)'
+    }
     ln.style.display = 'inline-block'
     ln.style.width = `${gutterW - GUTTER_GAP}px`
     ln.style.marginRight = `${GUTTER_GAP}px`
     ln.style.textAlign = 'right'
+    ln.style.cursor = 'pointer'
+    ln.style.userSelect = 'none'
     ln.textContent = String(lineNumberFor(line, style.lineNumbers))
+    ln.addEventListener('click', onToggle)
     row.appendChild(ln)
   }
 
