@@ -5,12 +5,21 @@ import { layoutCode, maxLineNumber, type LayoutedCode } from '../src/core/layout
 import { highlightCode, type HighlightResult } from '../src/core/highlight'
 import { resolveTheme, CURATED_THEMES } from '../src/core/theme-map'
 import { CURATED_LANGUAGES } from '../src/core/languages'
-import { gutterWidth } from '../src/core/geometry'
+import { gutterWidth, setMeasureTextImpl } from '../src/core/geometry'
 import { renderPreview } from './preview'
 import { exportCanvasPng } from './export/canvas'
 import { exportDomPng } from './export/domtoimage'
 
 declare function acquireVsCodeApi(): { postMessage(msg: WebviewMessage): void }
+
+// Wire the DOM-backed text measurement into core geometry, which itself
+// stays DOM-free (hang-③): must run before any render/layout happens.
+let measureCtx: CanvasRenderingContext2D | null = null
+setMeasureTextImpl((text, font) => {
+  if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d')!
+  measureCtx.font = font
+  return measureCtx.measureText(text).width
+})
 
 const vscode = acquireVsCodeApi()
 const app = document.getElementById('app')!

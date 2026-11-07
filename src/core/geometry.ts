@@ -52,15 +52,25 @@ export function fontString(
 /** Horizontal gap between the line-number column and the code. */
 export const GUTTER_GAP = 16
 
-let measureCtx: CanvasRenderingContext2D | null = null
+let measureImpl: ((text: string, font: string) => number) | null = null
+
+/**
+ * Inject the DOM-backed text measurement. core itself stays DOM-free: the
+ * webview wires the real canvas 2d context at bootstrap, and tests inject
+ * a stub before calling geometry consumers. Pass null to unbind (tests).
+ */
+export function setMeasureTextImpl(
+  impl: ((text: string, font: string) => number) | null
+): void {
+  measureImpl = impl
+}
 
 /** Measure text width with the same font the preview/canvas will use. */
 export function measureText(text: string, font: string): number {
-  if (!measureCtx) {
-    measureCtx = document.createElement('canvas').getContext('2d')!
+  if (!measureImpl) {
+    throw new Error('measureText used before setMeasureTextImpl was called')
   }
-  measureCtx.font = font
-  return measureCtx.measureText(text).width
+  return measureImpl(text, font)
 }
 
 /** Total gutter width (numbers + gap); 0 when line numbers are off. */
