@@ -75,6 +75,30 @@ export function measureText(text: string, font: string): number {
   return measureImpl(text, font)
 }
 
+export interface FontBox {
+  ascent: number
+  descent: number
+}
+
+let measureFontBoxImpl: ((font: string) => FontBox) | null = null
+
+/**
+ * Inject the font-metrics probe (ascent/descent of the font's content area —
+ * exactly what a DOM inline background covers). Same injection pattern as
+ * measureText: core stays DOM-free, the webview wires a canvas 2d context.
+ */
+export function setMeasureFontBoxImpl(impl: ((font: string) => FontBox) | null): void {
+  measureFontBoxImpl = impl
+}
+
+/** Font content-area metrics, shared by mask-block rendering (F10). */
+export function fontBox(font: string): FontBox {
+  if (!measureFontBoxImpl) {
+    throw new Error('fontBox used before setMeasureFontBoxImpl was called')
+  }
+  return measureFontBoxImpl(font)
+}
+
 /** Total gutter width (numbers + gap); 0 when line numbers are off. */
 export function gutterWidth(
   maxLineNumber: number,

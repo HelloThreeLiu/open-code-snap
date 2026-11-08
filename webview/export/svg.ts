@@ -11,9 +11,11 @@ import {
   WINDOW_INNER_PAD,
   GUTTER_GAP,
   fontString,
+  fontBox,
   measureText,
 } from '../../src/core/geometry'
 import { MARK_COLORS, MARK_SVG_COLORS } from '../../src/core/diff'
+import { applyMasksToLine, maskAsteriskText, maskRuns } from '../../src/core/mask'
 import {
   contrastOverlay,
   gradientEndpoints,
@@ -37,6 +39,9 @@ import type { CanvasExportInput } from './canvas'
 export function esc(s: string): string {
   return s
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, '')
+    // Lone surrogates are invalid XML 1.0 too (review m-2): a mask boundary
+    // or any other path that halves a pair would break the whole file.
+    .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -172,19 +177,45 @@ export function exportSvgString(input: CanvasExportInput): string {
 
   // --- code tokens: one <text> per token at the same x/y the canvas draws ---
   const codeX = wx + pad + input.gutterWidth
+  // F10 block geometry — same font-metrics numbers as canvas.ts.
+  const box = fontBox(baseFont)
+  const blockH = box.ascent + box.descent
+  const blockYOff = (lineH - blockH) / 2
   layout.lines.forEach((_, i) => {
     const y = wy + titleH + pad + i * lineH
     const tokens = highlight.lines[i]?.tokens ?? []
+    const lineMasks = input.masks.filter((m) => m.line === i)
+    const segments = applyMasksToLine(tokens, lineMasks)
+    // Pre-measure so a run of adjacent masked segments renders as ONE
+    // continuous bar (same numbers as canvas.ts).
+    const fonts = segments.map((s) => fontString(style, { italic: s.italic, bold: s.bold }))
+    const widths = segments.map((s, i2) => measureText(s.text, fonts[i2]))
+    const xs: number[] = []
     let x = codeX
-    for (const t of tokens) {
-      const font = fontString(style, { italic: t.italic, bold: t.bold })
-      const italic = t.italic ? ' font-style="italic"' : ''
-      const bold = t.bold ? ' font-weight="bold"' : ''
-      parts.push(
-        `<text x="${n(x)}" y="${n(y)}"${TOP_BASELINE} fill="${esc(t.color)}" font-size="${style.fontSize}"${italic}${bold} xml:space="preserve">${esc(t.text)}</text>`
-      )
-      x += measureText(t.text, font)
+    for (let i2 = 0; i2 < segments.length; i2++) {
+      xs.push(x)
+      x += widths[i2]
     }
+    if (style.maskStyle === 'block') {
+      for (const { from, to } of maskRuns(segments)) {
+        // Security: the masked source text must NOT appear in the SVG at all
+        // — the block REPLACES it (covering would keep it recoverable).
+        let w = 0
+        for (let k = from; k < to; k++) w += widths[k]
+        parts.push(
+          `<rect x="${n(xs[from])}" y="${n(y + blockYOff)}" width="${n(w)}" height="${n(blockH)}" rx="2" fill="${esc(fg)}"/>`
+        )
+      }
+    }
+    segments.forEach((seg, i2) => {
+      if (seg.masked && style.maskStyle === 'block') return // drawn as a run bar
+      const text = seg.masked ? maskAsteriskText(widths[i2], fonts[i2]) : seg.text
+      const italic = seg.italic ? ' font-style="italic"' : ''
+      const bold = seg.bold ? ' font-weight="bold"' : ''
+      parts.push(
+        `<text x="${n(xs[i2])}" y="${n(y)}"${TOP_BASELINE} fill="${esc(seg.color)}" font-size="${style.fontSize}"${italic}${bold} xml:space="preserve">${esc(text)}</text>`
+      )
+    })
   })
 
   // --- watermark (F6) ---

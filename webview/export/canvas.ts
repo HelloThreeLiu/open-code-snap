@@ -13,9 +13,11 @@ import {
   WINDOW_INNER_PAD,
   GUTTER_GAP,
   fontString,
+  fontBox,
   measureText,
 } from '../../src/core/geometry'
 import { MARK_COLORS, type LineMark } from '../../src/core/diff'
+import { applyMasksToLine, maskAsteriskText, maskRuns, type MaskRange } from '../../src/core/mask'
 import {
   contrastOverlay,
   gradientEndpoints,
@@ -38,6 +40,8 @@ export interface CanvasExportInput {
   windowTitle: string
   /** F7 diff marks; rows with a mark get the wash + gutter accent. */
   lineMarks: Record<number, LineMark>
+  /** F10 redaction ranges in layouted-line coordinates. */
+  masks: MaskRange[]
 }
 
 /** Render to a PNG dataURL. Synchronous, typically a few ms per 100 lines. */
@@ -172,16 +176,43 @@ export function exportCanvasPng(input: CanvasExportInput): string {
   // matching the DOM preview for Fira Code et al.
   ctx.font = baseFont
   const codeX = wx + pad + input.gutterWidth
+  // F10 block geometry: the DOM bar covers the font's content area (what an
+  // inline background paints), so reuse those exact metrics here.
+  const box = fontBox(baseFont)
+  const blockH = box.ascent + box.descent
+  const blockYOff = (lineH - blockH) / 2
   layout.lines.forEach((_, i) => {
     const y = wy + titleH + pad + i * lineH
     const tokens = highlight.lines[i]?.tokens ?? []
+    const lineMasks = input.masks.filter((m) => m.line === i)
+    const segments = applyMasksToLine(tokens, lineMasks)
+    // Pre-measure so a run of adjacent masked segments renders as ONE
+    // continuous bar — per-segment rects would show rounded corner notches.
+    const fonts = segments.map((s) => fontString(style, { italic: s.italic, bold: s.bold }))
+    const widths = segments.map((s, i2) => measureText(s.text, fonts[i2]))
+    const xs: number[] = []
     let x = codeX
-    for (const t of tokens) {
-      ctx.font = fontString(style, { italic: t.italic, bold: t.bold })
-      ctx.fillStyle = t.color
-      ctx.fillText(t.text, x, y)
-      x += measureText(t.text, ctx.font)
+    for (let i2 = 0; i2 < segments.length; i2++) {
+      xs.push(x)
+      x += widths[i2]
     }
+    if (style.maskStyle === 'block') {
+      ctx.fillStyle = fg
+      for (const { from, to } of maskRuns(segments)) {
+        let w = 0
+        for (let k = from; k < to; k++) w += widths[k]
+        roundRect(ctx, xs[from], y + blockYOff, w, blockH, 2)
+        ctx.fill()
+      }
+    }
+    segments.forEach((seg, i2) => {
+      if (seg.masked && style.maskStyle === 'block') return // drawn as a run bar
+      ctx.font = fonts[i2]
+      ctx.fillStyle = seg.color
+      // Asterisk mode: draw the replacement but advance by the ORIGINAL
+      // width so the rest of the line never shifts.
+      ctx.fillText(seg.masked ? maskAsteriskText(widths[i2], fonts[i2]) : seg.text, xs[i2], y)
+    })
   })
 
   // --- watermark (F6) ---

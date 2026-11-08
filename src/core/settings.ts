@@ -22,6 +22,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
   showWindowTitle: { type: 'boolean' },
   lineNumbers: { type: 'string', enum: ['off', 'relative', 'real'] },
   languageOverride: { type: 'string' },
+  maskStyle: { type: 'string', enum: ['block', 'asterisk'] },
   backgroundColor: { type: 'string' },
   transparentBackground: { type: 'boolean' },
   backgroundType: { type: 'string', enum: ['solid', 'gradient', 'grid', 'dots'] },

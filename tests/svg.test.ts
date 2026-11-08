@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { esc, exportSvgString } from '../webview/export/svg'
-import { setMeasureTextImpl } from '../src/core/geometry'
+import { setMeasureTextImpl, setMeasureFontBoxImpl } from '../src/core/geometry'
 import { layoutCode } from '../src/core/layout'
 import type { HighlightResult } from '../src/core/highlight'
 import { DEFAULT_STYLE } from '../src/core/model'
@@ -28,6 +28,7 @@ function makeInput(overrides: Partial<CanvasExportInput> = {}): CanvasExportInpu
     gutterWidth: 40,
     windowTitle: 'main.ts',
     lineMarks: {},
+    masks: [],
     ...overrides,
   }
 }
@@ -44,11 +45,24 @@ describe('esc (review M-3)', () => {
   it('keeps tabs, newlines and printable text', () => {
     expect(esc('a\tb\nc — 中文')).toBe('a\tb\nc — 中文')
   })
+
+  it('drops lone surrogates but keeps valid pairs (review m-2)', () => {
+    expect(esc('a\uD800b\uDC00c')).toBe('abc')
+    expect(esc('a\uFFFEb')).toBe('ab')
+    expect(esc('a\u{1F600}b')).toBe('a\u{1F600}b')
+  })
 })
 
 describe('exportSvgString', () => {
-  beforeEach(() => setMeasureTextImpl(stubMeasure))
-  afterEach(() => setMeasureTextImpl(null))
+  beforeEach(() => {
+    setMeasureTextImpl(stubMeasure)
+    // F10: deterministic font content-area (ascent 8 + descent 4 = 12px bar).
+    setMeasureFontBoxImpl(() => ({ ascent: 8, descent: 4 }))
+  })
+  afterEach(() => {
+    setMeasureTextImpl(null)
+    setMeasureFontBoxImpl(null)
+  })
 
   it('starts with an XML declaration and a proper svg root (review N-8)', () => {
     const svg = exportSvgString(makeInput())
@@ -96,6 +110,42 @@ describe('exportSvgString', () => {
     expect(svg).toContain('fill="#3fb950" fill-opacity="0.16"')
     expect(svg).toContain('fill="#f85149" fill-opacity="0.16"')
     expect(svg).not.toContain('rgba(63, 185, 80')
+  })
+
+  it('never leaks masked source text into the SVG — block mode (review m-1)', () => {
+    const secret = 'hunter2secret'
+    const source = `const pwd = "${secret}"`
+    const svg = exportSvgString(
+      makeInput({
+        layout: layoutCode(source, { tabSize: 4, startLine: 0 }),
+        highlight: {
+          lines: [{ tokens: [{ text: source, color: '#d4d4d4', italic: false, bold: false }] }],
+          colors: highlight.colors,
+        },
+        // 'const pwd = "' is 13 chars; the secret follows.
+        masks: [{ line: 0, start: 13, end: 13 + secret.length }],
+      })
+    )
+    expect(svg).not.toContain(secret)
+    expect(svg).toContain('<rect')
+  })
+
+  it('never leaks masked source text into the SVG — asterisk mode (review m-1)', () => {
+    const secret = 'hunter2secret'
+    const source = `const pwd = "${secret}"`
+    const svg = exportSvgString(
+      makeInput({
+        layout: layoutCode(source, { tabSize: 4, startLine: 0 }),
+        highlight: {
+          lines: [{ tokens: [{ text: source, color: '#d4d4d4', italic: false, bold: false }] }],
+          colors: highlight.colors,
+        },
+        masks: [{ line: 0, start: 13, end: 13 + secret.length }],
+        style: { ...DEFAULT_STYLE, maskStyle: 'asterisk' },
+      })
+    )
+    expect(svg).not.toContain(secret)
+    expect(svg).toMatch(/\*{5,}/)
   })
 
   it('stains the watermark with a contrast overlay, never the backdrop itself (review C-1)', () => {
