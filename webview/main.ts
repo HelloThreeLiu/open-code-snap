@@ -6,8 +6,10 @@ import { highlightCode, type HighlightResult } from '../src/core/highlight'
 import { resolveTheme, CURATED_THEMES } from '../src/core/theme-map'
 import { CURATED_LANGUAGES } from '../src/core/languages'
 import { gutterWidth, setMeasureTextImpl } from '../src/core/geometry'
+import { nextMark, type LineMark } from '../src/core/diff'
 import { renderPreview } from './preview'
 import { exportCanvasPng } from './export/canvas'
+import { exportSvgString } from './export/svg'
 
 declare function acquireVsCodeApi(): { postMessage(msg: WebviewMessage): void }
 
@@ -31,6 +33,8 @@ interface State {
   titleOverride: string | null
   /** documentKey of the current request, to detect file switches. */
   lastDocKey: string
+  /** F7 diff marks by layout line index; cleared on every new snapshot. */
+  lineMarks: Record<number, LineMark>
 }
 
 const state: State = {
@@ -39,6 +43,7 @@ const state: State = {
   themeContext: { editorThemeName: '' },
   titleOverride: null,
   lastDocKey: '',
+  lineMarks: {},
 }
 
 interface RenderCache {
@@ -48,6 +53,8 @@ interface RenderCache {
   gutterWidth: number
   themeId: string
   windowTitle: string
+  /** Same reference as state.lineMarks — exports must see live marks. */
+  lineMarks: Record<number, LineMark>
 }
 
 let cache: RenderCache | null = null
@@ -199,12 +206,18 @@ function buildShell(): void {
   btnSave.textContent = '保存 PNG'
   btnSave.addEventListener('click', () => void exportImage('save'))
 
+  const btnSaveSvg = document.createElement('button')
+  btnSaveSvg.id = 'btn-save-svg'
+  btnSaveSvg.textContent = '保存 SVG'
+  btnSaveSvg.title = '矢量导出（F8）；缩放倍数不适用于 SVG'
+  btnSaveSvg.addEventListener('click', () => void exportSvgFile())
+
   const btnCopy = document.createElement('button')
   btnCopy.id = 'btn-copy'
   btnCopy.textContent = '复制到剪贴板'
   btnCopy.addEventListener('click', () => void exportImage('copy'))
 
-  row1.append(themeSelect, langSelect, lineNoSelect, windowSelect, transparentLabel, scaleSelect, btnSave, btnCopy)
+  row1.append(themeSelect, langSelect, lineNoSelect, windowSelect, transparentLabel, scaleSelect, btnSave, btnSaveSvg, btnCopy)
 
   // --- row 2: backdrop & watermark (F5/F6) ---
   const row2 = document.createElement('div')
@@ -307,6 +320,7 @@ async function rerender(): Promise<void> {
     gutterWidth: gutterWidth(maxNo, style),
     themeId,
     windowTitle,
+    lineMarks: state.lineMarks,
   }
 
   const preview = document.getElementById('preview')!
@@ -316,6 +330,14 @@ async function rerender(): Promise<void> {
     style,
     windowTitle,
     gutterWidth: cache.gutterWidth,
+    lineMarks: state.lineMarks,
+    // F7: cycle unmarked -> added -> removed on the line number.
+    onToggleMark: (i) => {
+      const next = nextMark(state.lineMarks[i])
+      if (next) state.lineMarks[i] = next
+      else delete state.lineMarks[i]
+      void rerender()
+    },
     // Live sync keeps exports correct even mid-edit (no blur dependency).
     onTitleInput: (text) => {
       state.titleOverride = text
@@ -436,6 +458,23 @@ async function exportImage(action: 'save' | 'copy'): Promise<void> {
   }
 }
 
+/** F8: generate the SVG source and hand it to the host for a save dialog. */
+function exportSvgFile(): void {
+  try {
+    if (!cache) throw new Error('nothing rendered yet')
+    const t0 = performance.now()
+    const svg = exportSvgString(cache)
+    const ms = Math.round(performance.now() - t0)
+    vscode.postMessage({ type: 'saveSvg', svg })
+    // Blob size counts UTF-8 bytes; svg.length would overcount CJK titles.
+    const kb = Math.round(new Blob([svg]).size / 1024)
+    setStatus(`已生成 SVG（矢量，${ms} ms，${kb} KB），请在弹出的保存对话框中选择位置`)
+  } catch (err) {
+    setStatus(`❌ SVG 导出失败: ${String(err)}`)
+    vscode.postMessage({ type: 'notify', level: 'error', text: `SVG export failed: ${String(err)}` })
+  }
+}
+
 function flashFx(): void {
   const flash = document.getElementById('flash-fx')!
   flash.style.display = 'block'
@@ -454,6 +493,12 @@ window.addEventListener('message', ({ data }: MessageEvent<HostMessage>) => {
     if (data.request.documentKey !== state.lastDocKey) {
       state.titleOverride = null
       state.lastDocKey = data.request.documentKey
+    }
+    // F7 marks are per-snapshot: drop them only when the code itself changed —
+    // a style-only push (theme, watermark…) re-sends the same request and
+    // must keep the user's marks (review M-5).
+    if (!state.request || state.request.code !== data.request.code) {
+      state.lineMarks = {}
     }
     state.request = data.request
     state.style = data.style

@@ -88,6 +88,8 @@ export type HostMessage =
 export type WebviewMessage =
   | { type: 'ready' }
   | { type: 'saveImage'; dataURL: string }
+  /** F8: save the generated SVG source; host validates and writes a .svg file. */
+  | { type: 'saveSvg'; svg: string }
   | { type: 'notify'; level: 'info' | 'warn' | 'error'; text: string }
   /** Persist a style knob to user settings (F4.2). Key/value pass the
    *  host-side whitelist in src/core/settings.ts before anything is written. */
