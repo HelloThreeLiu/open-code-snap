@@ -538,7 +538,7 @@ async function deletePresetFlow(context: vscode.ExtensionContext): Promise<void>
   if (name === null) return
   const presets = loadPresets(context)
   if (presets[name] === undefined) {
-    vscode.window.showWarningMessage(`Open Code Snap: 预设「${name}」不存在，列表已刷新。`)
+    vscode.window.showWarningMessage(tr('host.presetMissing', { name }))
     pushPresets(context)
     return
   }
@@ -555,7 +555,7 @@ async function exportPresetFlow(context: vscode.ExtensionContext): Promise<void>
   if (name === null) return
   const raw = loadPresets(context)[name]
   if (raw === undefined) {
-    vscode.window.showWarningMessage(`Open Code Snap: 预设「${name}」不存在，列表已刷新。`)
+    vscode.window.showWarningMessage(tr('host.presetMissing', { name }))
     pushPresets(context)
     return
   }
@@ -605,7 +605,7 @@ async function importPresetFlow(context: vscode.ExtensionContext): Promise<void>
   const presets = loadPresets(context)
   const existed = presets[name] !== undefined
   if (!existed && Object.keys(presets).length >= MAX_PRESETS) {
-    vscode.window.showWarningMessage(`Open Code Snap: 预设数量已达上限（${MAX_PRESETS}），请先删除部分预设。`)
+    vscode.window.showWarningMessage(tr('host.presetLimit', { max: MAX_PRESETS }))
     return
   }
   presets[name] = result.settings

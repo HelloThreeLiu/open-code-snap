@@ -27,5 +27,6 @@
   "config.ligatures": "Ligatures (follows editor.fontLigatures)",
   "config.tabSize": "Tab width. `0` = follow the document editor setting",
   "config.exportScale": "Export scale",
-  "config.uiLanguage": "UI language: `auto` follows the VS Code display language (Simplified Chinese for zh environments, English otherwise) / `zh` / `en`"
+  "config.uiLanguage": "UI language: `auto` follows the VS Code display language (Simplified Chinese for zh environments, English otherwise) / `zh` / `en`",
+  "extension.description": "📷 Open-source code screenshot tool — select code, get a beautiful image. Highlighting follows your editor theme, Canvas-powered export, clipboard untouched."
 }

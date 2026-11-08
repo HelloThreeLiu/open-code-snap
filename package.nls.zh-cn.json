@@ -27,5 +27,6 @@
   "config.ligatures": "连字（跟随编辑器设置中的 fontLigatures）",
   "config.tabSize": "Tab 宽度。`0` 跟随文档的编辑器设置",
   "config.exportScale": "导出缩放倍数",
-  "config.uiLanguage": "界面语言：`auto` 跟随 VS Code 显示语言（中文环境为简体，其余英文）/ `zh` 简体中文 / `en` English"
+  "config.uiLanguage": "界面语言：`auto` 跟随 VS Code 显示语言（中文环境为简体，其余英文）/ `zh` 简体中文 / `en` English",
+  "extension.description": "📷 开源代码截图工具——选中代码，一键生成可分享的精美图片。高亮跟随编辑器主题，Canvas 自绘导出，不污染剪贴板。"
 }

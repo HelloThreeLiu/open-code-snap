@@ -757,7 +757,7 @@ async function exportImage(action: 'save' | 'copy'): Promise<void> {
     }
   } catch (err) {
     setStatus(tr('error.export', { err: String(err) }))
-    vscode.postMessage({ type: 'notify', level: 'error', text: `Export failed: ${String(err)}` })
+    vscode.postMessage({ type: 'notify', level: 'error', text: tr('error.export', { err: String(err) }) })
   }
 }
 
@@ -774,7 +774,7 @@ function exportSvgFile(): void {
     setStatus(tr('status.savedSvg', { ms, kb }))
   } catch (err) {
     setStatus(tr('error.svgExport', { err: String(err) }))
-    vscode.postMessage({ type: 'notify', level: 'error', text: `SVG export failed: ${String(err)}` })
+    vscode.postMessage({ type: 'notify', level: 'error', text: tr('error.svgExport', { err: String(err) }) })
   }
 }
 
@@ -797,6 +797,10 @@ window.addEventListener('message', ({ data }: MessageEvent<HostMessage>) => {
     if (data.themeContext.uiLocale !== currentLocale) {
       currentLocale = data.themeContext.uiLocale
       buildShell()
+      // buildShell resets the mask button; pending ranges survive a rebuild
+      // by design, so restore the enabled state (review N-1).
+      const btn = document.getElementById('btn-mask') as HTMLButtonElement | null
+      if (btn) btn.disabled = pendingMasks.length === 0
     }
   }
   if (data.type === 'update') {
@@ -835,7 +839,7 @@ window.addEventListener('message', ({ data }: MessageEvent<HostMessage>) => {
   }
   rerender().catch((err) => {
     setStatus(tr('error.render', { err: String(err) }))
-    vscode.postMessage({ type: 'notify', level: 'error', text: `Open Code Snap render error: ${String(err)}` })
+    vscode.postMessage({ type: 'notify', level: 'error', text: tr('error.render', { err: String(err) }) })
   })
 })
 
