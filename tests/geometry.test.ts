@@ -1,6 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { gutterWidth, measureText, setMeasureTextImpl, stageInsets, titleBarHeight } from '../src/core/geometry'
+import {
+  CANVAS_MAX_AREA,
+  CANVAS_MAX_SIDE,
+  gutterWidth,
+  measureText,
+  resolveCanvasScale,
+  setMeasureTextImpl,
+  stageInsets,
+  titleBarHeight,
+} from '../src/core/geometry'
 import { DEFAULT_STYLE } from '../src/core/model'
 import type { StyleConfig } from '../src/core/protocol'
 
@@ -23,6 +32,76 @@ describe('measureText injection', () => {
   it('delegates to the injected implementation', () => {
     setMeasureTextImpl(stubMeasure)
     expect(measureText('abcd', 'ignored')).toBe(32)
+  })
+
+  it('caches repeated measurements — impl runs once per (font, text) (F11)', () => {
+    let calls = 0
+    setMeasureTextImpl((t) => {
+      calls++
+      return t.length * 8
+    })
+    expect(measureText('abc', 'f1')).toBe(24)
+    expect(measureText('abc', 'f1')).toBe(24)
+    // Different font = different cache entry; same font different text too.
+    expect(measureText('abc', 'f2')).toBe(24)
+    expect(measureText('abcd', 'f1')).toBe(32)
+    expect(calls).toBe(3)
+  })
+
+  it('clears the cache when the implementation is rebound (F11)', () => {
+    setMeasureTextImpl(() => 8)
+    expect(measureText('abc', 'f')).toBe(8)
+    setMeasureTextImpl(() => 16)
+    expect(measureText('abc', 'f')).toBe(16)
+  })
+
+  it('re-caches entries inserted right after an eviction (review m-1)', () => {
+    let calls = 0
+    setMeasureTextImpl((t) => {
+      calls++
+      return t.length
+    })
+    // Fill to exactly the limit, then trigger one eviction.
+    for (let i = 0; i < 8192; i++) measureText(`t${i}`, 'f')
+    expect(calls).toBe(8192)
+    expect(measureText('last', 'f')).toBe(4) // eviction here → 8193
+    expect(measureText('last', 'f')).toBe(4) // must be a cache hit, not 8194
+    expect(calls).toBe(8193)
+  })
+})
+
+describe('resolveCanvasScale (F11 Chromium caps)', () => {
+  it('keeps the requested scale when everything fits', () => {
+    expect(resolveCanvasScale(800, 2000, 3)).toBe(3)
+    expect(resolveCanvasScale(800, 2000, 2)).toBe(2)
+  })
+
+  it('steps down when the side cap (32767px) would be exceeded', () => {
+    // 800×14000 @3x → side 42000 exceeds the cap → clamp to 2x (28000 ✓)
+    expect(resolveCanvasScale(800, 14000, 3)).toBe(2)
+  })
+
+  it('steps down when the area cap (2^28 px²) would be exceeded', () => {
+    // 17000×17000 @1x = 289M > 2^28 → nothing fits → throws
+    expect(() => resolveCanvasScale(17000, 17000, 1)).toThrow()
+    // 12000×20000 @1x = 240M ✓ fits; @2x side fails and area fails → 1x
+    expect(resolveCanvasScale(12000, 20000, 2)).toBe(1)
+  })
+
+  it('throws with the dimensions in the message when even 1x fails', () => {
+    expect(() => resolveCanvasScale(40000, 400, 1)).toThrow(/40000/)
+  })
+
+  it('accepts values sitting exactly on the caps (review m-2)', () => {
+    expect(resolveCanvasScale(32767, 100, 1)).toBe(1) // side == cap
+    expect(resolveCanvasScale(16384, 16384, 1)).toBe(1) // area == 2^28
+    expect(() => resolveCanvasScale(32768, 100, 1)).toThrow() // side cap + 1
+    expect(() => resolveCanvasScale(16385, 16384, 1)).toThrow() // area cap + 1
+  })
+
+  it('exposes the documented caps', () => {
+    expect(CANVAS_MAX_SIDE).toBe(32767)
+    expect(CANVAS_MAX_AREA).toBe(268435456)
   })
 })
 
