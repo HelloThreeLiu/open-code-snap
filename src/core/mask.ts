@@ -151,3 +151,20 @@ export function maskAsteriskText(width: number, font: string): string {
   if (unit <= 0) return '*'
   return '*'.repeat(Math.max(1, Math.round(width / unit)))
 }
+
+/**
+ * Contiguous runs of masked segments as [from, to) index ranges into
+ * `segments`. Segments tile a line contiguously by construction, so adjacency
+ * in the array IS adjacency in geometry — one run renders as ONE continuous
+ * bar instead of per-token rects with rounded corner notches (F5 finding).
+ */
+export function maskRuns(segments: MaskedSegment[]): { from: number; to: number }[] {
+  const runs: { from: number; to: number }[] = []
+  for (let i = 0; i < segments.length; i++) {
+    if (!segments[i].masked) continue
+    const last = runs[runs.length - 1]
+    if (last && last.to === i) last.to = i + 1
+    else runs.push({ from: i, to: i + 1 })
+  }
+  return runs
+}

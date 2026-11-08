@@ -17,7 +17,7 @@ import {
   measureText,
 } from '../../src/core/geometry'
 import { MARK_COLORS, type LineMark } from '../../src/core/diff'
-import { applyMasksToLine, maskAsteriskText, type MaskRange } from '../../src/core/mask'
+import { applyMasksToLine, maskAsteriskText, maskRuns, type MaskRange } from '../../src/core/mask'
 import {
   contrastOverlay,
   gradientEndpoints,
@@ -186,23 +186,33 @@ export function exportCanvasPng(input: CanvasExportInput): string {
     const tokens = highlight.lines[i]?.tokens ?? []
     const lineMasks = input.masks.filter((m) => m.line === i)
     const segments = applyMasksToLine(tokens, lineMasks)
+    // Pre-measure so a run of adjacent masked segments renders as ONE
+    // continuous bar — per-segment rects would show rounded corner notches.
+    const fonts = segments.map((s) => fontString(style, { italic: s.italic, bold: s.bold }))
+    const widths = segments.map((s, i2) => measureText(s.text, fonts[i2]))
+    const xs: number[] = []
     let x = codeX
-    for (const seg of segments) {
-      const font = fontString(style, { italic: seg.italic, bold: seg.bold })
-      const w = measureText(seg.text, font)
-      if (seg.masked && style.maskStyle === 'block') {
-        ctx.fillStyle = fg
-        roundRect(ctx, x, y + blockYOff, w, blockH, 2)
-        ctx.fill()
-      } else {
-        ctx.font = font
-        ctx.fillStyle = seg.color
-        // Asterisk mode: draw the replacement but advance by the ORIGINAL
-        // width so the rest of the line never shifts.
-        ctx.fillText(seg.masked ? maskAsteriskText(w, font) : seg.text, x, y)
-      }
-      x += w
+    for (let i2 = 0; i2 < segments.length; i2++) {
+      xs.push(x)
+      x += widths[i2]
     }
+    if (style.maskStyle === 'block') {
+      ctx.fillStyle = fg
+      for (const { from, to } of maskRuns(segments)) {
+        let w = 0
+        for (let k = from; k < to; k++) w += widths[k]
+        roundRect(ctx, xs[from], y + blockYOff, w, blockH, 2)
+        ctx.fill()
+      }
+    }
+    segments.forEach((seg, i2) => {
+      if (seg.masked && style.maskStyle === 'block') return // drawn as a run bar
+      ctx.font = fonts[i2]
+      ctx.fillStyle = seg.color
+      // Asterisk mode: draw the replacement but advance by the ORIGINAL
+      // width so the rest of the line never shifts.
+      ctx.fillText(seg.masked ? maskAsteriskText(widths[i2], fonts[i2]) : seg.text, xs[i2], y)
+    })
   })
 
   // --- watermark (F6) ---

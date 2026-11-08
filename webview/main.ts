@@ -12,7 +12,12 @@ import { renderPreview } from './preview'
 import { exportCanvasPng } from './export/canvas'
 import { exportSvgString } from './export/svg'
 
-declare function acquireVsCodeApi(): { postMessage(msg: WebviewMessage): void }
+declare function acquireVsCodeApi(): {
+  postMessage(msg: WebviewMessage): void
+  /** Webview-local persistence: survives panel reloads, not panel closes. */
+  getState(): unknown
+  setState(state: unknown): void
+}
 
 // Wire the DOM-backed text measurement into core geometry, which itself
 // stays DOM-free (hang-③): must run before any render/layout happens.
@@ -364,6 +369,48 @@ function buildShell(): void {
 // ---------------------------------------------------------------- F10 masks
 
 /**
+ * Session content state persisted via webview setState (review F5 finding:
+ * a panel reload used to silently drop masks, and the next export shipped
+ * unmasked secrets). Restored only when the incoming snapshot matches the
+ * persisted one exactly (documentKey + code + tabSize — the layout the
+ * coordinates were measured against).
+ */
+interface SavedSession {
+  docKey: string
+  code: string
+  tabSize: number
+  titleOverride: string | null
+  lineMarks: Record<number, LineMark>
+  masks: MaskRange[]
+}
+
+function persistSession(): void {
+  vscode.setState({
+    docKey: state.lastDocKey,
+    code: state.request?.code ?? '',
+    tabSize: state.request?.font.tabSize ?? 0,
+    titleOverride: state.titleOverride,
+    lineMarks: state.lineMarks,
+    masks: state.masks,
+  } satisfies SavedSession)
+}
+
+function restoreSession(request: SnippetRequest): void {
+  const saved = vscode.getState() as SavedSession | undefined
+  if (
+    !saved ||
+    saved.docKey !== request.documentKey ||
+    saved.code !== request.code ||
+    saved.tabSize !== request.font.tabSize
+  ) {
+    return
+  }
+  state.titleOverride = saved.titleOverride ?? null
+  state.lineMarks = saved.lineMarks ?? {}
+  state.masks = saved.masks ?? []
+}
+
+/**
  * Last preview text selection mapped to mask ranges. Kept across collapses
  * so the toolbar button (whose mousedown kills the selection) still works.
  */
@@ -517,6 +564,7 @@ async function rerender(): Promise<void> {
     onTitleInput: (text) => {
       state.titleOverride = text
       if (cache) cache.windowTitle = text
+      persistSession()
     },
     onTitleChange: (text) => {
       state.titleOverride = text
@@ -533,7 +581,10 @@ async function rerender(): Promise<void> {
       : resolved.approx
         ? `（近似映射：${state.themeContext.editorThemeName} → ${themeId}）`
         : `（编辑器主题 "${state.themeContext.editorThemeName}" 未精确映射，已回退）`
-  setStatus(!state.request ? '等待代码选区…' : `${layout.lines.length} 行 · ${themeId}${themeNote}`)
+  // The mask count stays visible on EVERY status line: an export while the
+  // counter is absent cannot silently ship unmasked secrets (F5 finding).
+  const maskNote = state.masks.length > 0 ? ` · ${state.masks.length} 处遮罩` : ''
+  setStatus(!state.request ? '等待代码选区…' : `${layout.lines.length} 行 · ${themeId}${themeNote}${maskNote}`)
   // Notify once per unmapped theme — every selection change re-renders and
   // must not spam the same fallback notice (review N-2).
   if (
@@ -546,6 +597,7 @@ async function rerender(): Promise<void> {
     lastFallbackNotified = state.themeContext.editorThemeName
     vscode.postMessage({ type: 'notify', level: 'info', text: `Open Code Snap: 编辑器主题 "${state.themeContext.editorThemeName}" 暂无精确映射，已回退到 ${resolved.id}。` })
   }
+  persistSession()
 }
 
 /** Keep a value selectable even when it is not part of the curated list. */
@@ -717,6 +769,10 @@ window.addEventListener('message', ({ data }: MessageEvent<HostMessage>) => {
       // would mask wrong coordinates in the new code (review M-1).
       clearPendingMasks()
     }
+    // After clearing: a panel reload wipes webview memory, so restore the
+    // session state when the incoming snapshot is the exact one persisted
+    // (F5 finding — masks must survive a reload, not silently vanish).
+    restoreSession(data.request)
     state.request = data.request
     state.style = data.style
     state.themeContext = data.themeContext

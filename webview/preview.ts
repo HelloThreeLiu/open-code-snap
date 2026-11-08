@@ -4,7 +4,7 @@ import type { HighlightResult } from '../src/core/highlight'
 import type { StyleConfig } from '../src/core/protocol'
 import { stageInsets, titleBarHeight, WINDOW_INNER_PAD, GUTTER_GAP, fontString, measureText } from '../src/core/geometry'
 import { MARK_COLORS, type LineMark } from '../src/core/diff'
-import { applyMasksToLine, maskAsteriskText, type MaskRange } from '../src/core/mask'
+import { applyMasksToLine, maskAsteriskText, maskRuns, type MaskRange } from '../src/core/mask'
 import {
   contrastOverlay,
   cssPaintSizes,
@@ -295,7 +295,13 @@ function buildLine(
     // Blank line: keep the row height stable.
     lc.innerHTML = '&nbsp;'
   } else {
-    for (const seg of segments) {
+    // Run edges decide which corners stay rounded so a run of adjacent
+    // blocks reads as ONE continuous bar (matches canvas/SVG run rects).
+    const runEdge = new Map<number, { first: boolean; last: boolean }>()
+    for (const { from, to } of maskRuns(segments)) {
+      for (let k = from; k < to; k++) runEdge.set(k, { first: k === from, last: k === to - 1 })
+    }
+    segments.forEach((seg, idx) => {
       const span = document.createElement('span')
       if (seg.masked) {
         if (style.maskStyle === 'asterisk') {
@@ -308,6 +314,14 @@ function buildLine(
           span.textContent = seg.text
           span.style.background = fg
           span.classList.add('mask-block')
+          const edge = runEdge.get(idx)
+          span.style.borderRadius = !edge || (edge.first && edge.last)
+            ? '2px' // standalone mask
+            : edge.first
+              ? '2px 0 0 2px' // left end of a run
+              : edge.last
+                ? '0 2px 2px 0' // right end of a run
+                : '0' // middle: seamless continuation
         }
         // Original coordinates, so selection mapping survives re-masked text.
         span.dataset.col = String(seg.start)
@@ -323,7 +337,7 @@ function buildLine(
         span.dataset.end = String(seg.end)
       }
       lc.appendChild(span)
-    }
+    })
   }
   row.appendChild(lc)
   return row

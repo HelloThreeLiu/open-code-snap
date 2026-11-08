@@ -5,6 +5,7 @@ import {
   applyMasksToLine,
   maskAsteriskText,
   maskContaining,
+  maskRuns,
   normalizeMasks,
   removeMask,
 } from '../src/core/mask'
@@ -208,6 +209,36 @@ describe('applyMasksToLine', () => {
       ['😀', true],
       ['b', false],
     ])
+  })
+})
+
+describe('maskRuns', () => {
+  it('merges adjacent masked segments into one run (no corner notches)', () => {
+    const segments = applyMasksToLine([tok('const label')], [{ line: 0, start: 0, end: 11 }])
+    // 'const' and ' ' and 'label' split at token boundaries — but all masked.
+    expect(segments.every((s) => s.masked)).toBe(true)
+    expect(maskRuns(segments)).toEqual([{ from: 0, to: segments.length }])
+  })
+
+  it('splits runs at unmasked segments', () => {
+    const segments = applyMasksToLine(
+      [tok('abcdef')],
+      [
+        { line: 0, start: 0, end: 2 },
+        { line: 0, start: 4, end: 6 },
+      ]
+    )
+    // One token slices into ab|cd|ef → runs are per-mask, not per-char.
+    expect(segments.map((s) => s.text)).toEqual(['ab', 'cd', 'ef'])
+    expect(maskRuns(segments)).toEqual([
+      { from: 0, to: 1 },
+      { from: 2, to: 3 },
+    ])
+  })
+
+  it('returns no runs for unmasked lines', () => {
+    const segments = applyMasksToLine([tok('plain text')], [])
+    expect(maskRuns(segments)).toEqual([])
   })
 })
 
