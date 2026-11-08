@@ -91,19 +91,24 @@ function showPanel(context: vscode.ExtensionContext): void {
           )
           break
         }
-        void saveImage(context, msg.dataURL)
+        void saveImage(context, msg.dataURL).catch((err) => {
+          vscode.window.showErrorMessage(`Open Code Snap: 保存图片失败: ${String(err)}`)
+        })
         break
       }
       case 'saveSvg': {
-        if (
-          typeof msg.svg !== 'string' ||
-          msg.svg.length > MAX_SAVE_SVG_CHARS ||
-          !(msg.svg.startsWith('<svg') || msg.svg.startsWith('<?xml'))
-        ) {
+        if (typeof msg.svg !== 'string' || !(msg.svg.startsWith('<svg') || msg.svg.startsWith('<?xml'))) {
           vscode.window.showErrorMessage('Open Code Snap: 拒绝了非法的 SVG 数据（未通过校验）。')
           break
         }
-        void saveSvg(context, msg.svg)
+        // Oversized but well-formed: a legit long selection the user can act on.
+        if (msg.svg.length > MAX_SAVE_SVG_CHARS) {
+          vscode.window.showErrorMessage('Open Code Snap: SVG 内容过大，请减少所选行数后重试。')
+          break
+        }
+        void saveSvg(context, msg.svg).catch((err) => {
+          vscode.window.showErrorMessage(`Open Code Snap: 保存 SVG 失败: ${String(err)}`)
+        })
         break
       }
       case 'updateSetting':
