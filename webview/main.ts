@@ -5,7 +5,7 @@ import { layoutCode, maxLineNumber, type LayoutedCode } from '../src/core/layout
 import { highlightCode, type HighlightResult } from '../src/core/highlight'
 import { resolveTheme, CURATED_THEMES } from '../src/core/theme-map'
 import { CURATED_LANGUAGES } from '../src/core/languages'
-import { gutterWidth, setMeasureTextImpl, setMeasureFontBoxImpl } from '../src/core/geometry'
+import { gutterWidth, setMeasureTextImpl, setMeasureFontBoxImpl, type ExportScale } from '../src/core/geometry'
 import { nextMark, type LineMark } from '../src/core/diff'
 import { addMasks, maskContaining, removeMask, normalizeMasks, type MaskRange } from '../src/core/mask'
 import { renderPreview } from './preview'
@@ -584,7 +584,14 @@ async function rerender(): Promise<void> {
   // The mask count stays visible on EVERY status line: an export while the
   // counter is absent cannot silently ship unmasked secrets (F5 finding).
   const maskNote = state.masks.length > 0 ? ` · ${state.masks.length} 处遮罩` : ''
-  setStatus(!state.request ? '等待代码选区…' : `${layout.lines.length} 行 · ${themeId}${themeNote}${maskNote}`)
+  // F11: past ~1000 lines exports slow down and canvases may clamp — hint at
+  // splitting instead of failing the user later.
+  const longNote = layout.lines.length > 1000 ? ' · ⚠ 行数较多，建议分片导出' : ''
+  setStatus(
+    !state.request
+      ? '等待代码选区…'
+      : `${layout.lines.length} 行 · ${themeId}${themeNote}${longNote}${maskNote}`
+  )
   // Notify once per unmapped theme — every selection change re-renders and
   // must not spam the same fallback notice (review N-2).
   if (
@@ -698,7 +705,7 @@ function dataUrlToBlob(dataURL: string): Blob {
   return new Blob([bytes], { type: 'image/png' })
 }
 
-async function produceDataUrl(): Promise<string> {
+async function produceDataUrl(): Promise<{ dataURL: string; effectiveScale: ExportScale }> {
   if (!cache) throw new Error('nothing rendered yet')
   return exportCanvasPng(cache)
 }
@@ -706,15 +713,20 @@ async function produceDataUrl(): Promise<string> {
 async function exportImage(action: 'save' | 'copy'): Promise<void> {
   try {
     const t0 = performance.now()
-    const dataURL = await produceDataUrl()
+    const { dataURL, effectiveScale } = await produceDataUrl()
     const ms = Math.round(performance.now() - t0)
+    // F11: a clamped scale must be visible, not silent.
+    const scaleNote =
+      cache && effectiveScale !== cache.style.exportScale
+        ? `（${cache.style.exportScale}x 超出画布上限，已自动降为 ${effectiveScale}x）`
+        : ''
     if (action === 'save') {
       vscode.postMessage({ type: 'saveImage', dataURL })
-      setStatus(`已生成，请在弹出的保存对话框中选择位置（${ms} ms）`)
+      setStatus(`已生成${scaleNote}，请在弹出的保存对话框中选择位置（${ms} ms）`)
     } else {
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': dataUrlToBlob(dataURL) })])
       flashFx()
-      setStatus(`已复制到剪贴板（${ms} ms，${Math.round((dataURL.length * 3) / 4 / 1024)} KB）——现在可去任意位置 Ctrl+V 粘贴`)
+      setStatus(`已复制到剪贴板${scaleNote}（${ms} ms，${Math.round((dataURL.length * 3) / 4 / 1024)} KB）——现在可去任意位置 Ctrl+V 粘贴`)
     }
   } catch (err) {
     setStatus(`❌ 导出失败: ${String(err)}`)

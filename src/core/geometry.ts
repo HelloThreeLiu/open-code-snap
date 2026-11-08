@@ -57,14 +57,28 @@ export const GUTTER_GAP = 16
 let measureImpl: ((text: string, font: string) => number) | null = null
 
 /**
+ * Width cache (F11): the canvas/SVG exporters measure every token at least
+ * twice (width pass + draw pass) and long files repeat the same token shapes
+ * (keywords, indentation, numbers) — cache hits dominate on 1000+ lines.
+ * Two-level map (font → text → width) makes collisions impossible even for
+ * exotic font strings.
+ */
+const MEASURE_CACHE_LIMIT = 8192
+const measureCache = new Map<string, Map<string, number>>()
+let measureCacheCount = 0
+
+/**
  * Inject the DOM-backed text measurement. core itself stays DOM-free: the
  * webview wires the real canvas 2d context at bootstrap, and tests inject
  * a stub before calling geometry consumers. Pass null to unbind (tests).
+ * Rebinding clears the cache — a new source means new numbers.
  */
 export function setMeasureTextImpl(
   impl: ((text: string, font: string) => number) | null
 ): void {
   measureImpl = impl
+  measureCache.clear()
+  measureCacheCount = 0
 }
 
 /** Measure text width with the same font the preview/canvas will use. */
@@ -72,7 +86,21 @@ export function measureText(text: string, font: string): number {
   if (!measureImpl) {
     throw new Error('measureText used before setMeasureTextImpl was called')
   }
-  return measureImpl(text, font)
+  let perFont = measureCache.get(font)
+  if (!perFont) {
+    perFont = new Map()
+    measureCache.set(font, perFont)
+  }
+  const hit = perFont.get(text)
+  if (hit !== undefined) return hit
+  const width = measureImpl(text, font)
+  if (measureCacheCount >= MEASURE_CACHE_LIMIT) {
+    measureCache.clear()
+    measureCacheCount = 0
+  }
+  perFont.set(text, width)
+  measureCacheCount++
+  return width
 }
 
 export interface FontBox {
@@ -97,6 +125,39 @@ export function fontBox(font: string): FontBox {
     throw new Error('fontBox used before setMeasureFontBoxImpl was called')
   }
   return measureFontBoxImpl(font)
+}
+
+// --- F11: raster canvas size caps (Chromium) ---
+
+export const CANVAS_MAX_SIDE = 32767
+export const CANVAS_MAX_AREA = 2 ** 28
+
+/** Export scale; mirrors `openCodeSnap.exportScale`. */
+export type ExportScale = 1 | 2 | 3
+
+function canvasFits(width: number, height: number, scale: number): boolean {
+  const w = width * scale
+  const h = height * scale
+  return w <= CANVAS_MAX_SIDE && h <= CANVAS_MAX_SIDE && w * h <= CANVAS_MAX_AREA
+}
+
+/**
+ * Largest scale ≤ requested whose raster stays inside the Chromium canvas
+ * caps. Throws when even 1x cannot render — callers must surface this as a
+ * user-visible error instead of exporting a blank or clipped image (F11).
+ * Pure so the caps are unit-testable; canvas.ts consumes it.
+ */
+export function resolveCanvasScale(
+  width: number,
+  height: number,
+  requested: ExportScale
+): ExportScale {
+  for (let s = requested; s >= 1; s--) {
+    if (canvasFits(width, height, s)) return s as ExportScale
+  }
+  throw new Error(
+    `image size ${Math.ceil(width)}×${Math.ceil(height)} @1x exceeds canvas limits (${CANVAS_MAX_SIDE}px side / ${CANVAS_MAX_AREA}px² area) — shrink font size or split the selection`
+  )
 }
 
 /** Total gutter width (numbers + gap); 0 when line numbers are off. */

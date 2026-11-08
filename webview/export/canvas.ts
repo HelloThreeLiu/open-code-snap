@@ -15,6 +15,8 @@ import {
   fontString,
   fontBox,
   measureText,
+  resolveCanvasScale,
+  type ExportScale,
 } from '../../src/core/geometry'
 import { MARK_COLORS, type LineMark } from '../../src/core/diff'
 import { applyMasksToLine, maskAsteriskText, maskRuns, type MaskRange } from '../../src/core/mask'
@@ -44,8 +46,17 @@ export interface CanvasExportInput {
   masks: MaskRange[]
 }
 
+export interface CanvasExportResult {
+  dataURL: string
+  /**
+   * Scale actually used — lower than `style.exportScale` when the raster
+   * would exceed Chromium canvas caps (F11). Callers surface the downgrade.
+   */
+  effectiveScale: ExportScale
+}
+
 /** Render to a PNG dataURL. Synchronous, typically a few ms per 100 lines. */
-export function exportCanvasPng(input: CanvasExportInput): string {
+export function exportCanvasPng(input: CanvasExportInput): CanvasExportResult {
   const { layout, highlight, style } = input
   const insets = stageInsets(style)
   const titleH = titleBarHeight(style)
@@ -72,8 +83,11 @@ export function exportCanvasPng(input: CanvasExportInput): string {
   const W = Math.ceil(insets.left + windowW + insets.right)
   const H = Math.ceil(insets.top + windowH + insets.bottom)
 
+  // F11: long files at high scale would silently blank out past Chromium's
+  // canvas caps — clamp the scale (and fail visibly at 1x) BEFORE allocating.
+  const scale = resolveCanvasScale(W, H, style.exportScale)
+
   const canvas = document.createElement('canvas')
-  const scale = style.exportScale
   canvas.width = W * scale
   canvas.height = H * scale
   const ctx = canvas.getContext('2d')!
@@ -220,7 +234,7 @@ export function exportCanvasPng(input: CanvasExportInput): string {
     drawWatermark(ctx, style, input.windowTitle, resolveBackgroundPaint(style), W, H)
   }
 
-  return canvas.toDataURL('image/png')
+  return { dataURL: canvas.toDataURL('image/png'), effectiveScale: scale }
 }
 
 /** Stage backdrop for the canvas export — same numbers as the CSS preview. */
