@@ -133,18 +133,28 @@ export function exportCanvasPng(input: CanvasExportInput): string {
     }
   }
 
-  // --- line numbers + F7 row washes ---
+  // --- F7 row washes: unconditional on lineNumbers, matching the preview ---
+  layout.lines.forEach((_, i) => {
+    const mark = input.lineMarks[i]
+    if (mark) {
+      const y = wy + titleH + pad + i * lineH
+      ctx.fillStyle = MARK_COLORS[mark].rowBg
+      ctx.fillRect(wx, y, windowW, lineH)
+    }
+  })
+
+  // --- line numbers ---
   if (style.lineNumbers !== 'off' && layout.lines.length > 0) {
     ctx.font = baseFont
     ctx.textAlign = 'right'
+    // Explicit: the title block only sets 'top' when it runs, so without a
+    // title the numbers/tokens would drift to alphabetic (review C-2).
+    ctx.textBaseline = 'top'
     const numX = wx + pad + input.gutterWidth - GUTTER_GAP
     layout.lines.forEach((line, i) => {
       const y = wy + titleH + pad + i * lineH
       const mark = input.lineMarks[i]
       if (mark) {
-        // Full-row wash behind everything drawn afterwards.
-        ctx.fillStyle = MARK_COLORS[mark].rowBg
-        ctx.fillRect(wx, y, windowW, lineH)
         ctx.fillStyle = MARK_COLORS[mark].accent
         ctx.globalAlpha = 0.9
       } else {

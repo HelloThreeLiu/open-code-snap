@@ -13,8 +13,9 @@ import {
   fontString,
   measureText,
 } from '../../src/core/geometry'
-import { MARK_COLORS } from '../../src/core/diff'
+import { MARK_COLORS, MARK_SVG_COLORS } from '../../src/core/diff'
 import {
+  contrastOverlay,
   gradientEndpoints,
   paintAccent,
   resolveBackgroundPaint,
@@ -27,15 +28,24 @@ import {
 } from '../../src/core/watermark'
 import type { CanvasExportInput } from './canvas'
 
-/** XML-escape text content and attribute values. */
-function esc(s: string): string {
+/**
+ * XML-escape text content and attribute values. Also strips characters XML 1.0
+ * forbids outright (control ranges, BOM-adjacent noncharacters) — token text
+ * comes from arbitrary user selections, and one stray \x0B would make the
+ * whole file unparseable (review M-3). Exported for unit tests.
+ */
+export function esc(s: string): string {
   return s
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;')
 }
+
+/** Vertical alignment matching canvas textBaseline='top' / CSS box-top. */
+const TOP_BASELINE = ' dominant-baseline="text-before-edge"'
 
 const n = (v: number): string => String(Math.round(v * 100) / 100)
 
@@ -69,6 +79,8 @@ export function exportSvgString(input: CanvasExportInput): string {
   const wy = insets.top
 
   const parts: string[] = []
+  // XML declaration keeps Windows tools from guessing ANSI for CJK titles.
+  parts.push('<?xml version="1.0" encoding="UTF-8"?>')
   parts.push(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${esc(style.fontFamily || 'Consolas, monospace')}">`
   )
@@ -116,7 +128,7 @@ export function exportSvgString(input: CanvasExportInput): string {
     }
     if (style.showWindowTitle) {
       parts.push(
-        `<text x="${n(wx + windowW / 2)}" y="${n(wy + titleH / 2 + 1)}" dy=".35em" text-anchor="middle" fill="${esc(fg)}" fill-opacity="0.55" font-size="${Math.round(style.fontSize * 0.9)}">${esc(input.windowTitle)}</text>`
+        `<text x="${n(wx + windowW / 2)}" y="${n(wy + titleH / 2 + 1)}" dy=".35em" text-anchor="middle" fill="${esc(fg)}" fill-opacity="0.55" font-size="${Math.round(style.fontSize * 0.9)}" xml:space="preserve">${esc(input.windowTitle)}</text>`
       )
     }
     if (style.windowStyle === 'windows') {
@@ -130,24 +142,31 @@ export function exportSvgString(input: CanvasExportInput): string {
     }
   }
 
-  // --- line numbers + F7 row washes ---
+  // --- F7 row washes: unconditional on lineNumbers, matching the preview ---
+  if (layout.lines.length > 0) {
+    layout.lines.forEach((_, i) => {
+      const mark = input.lineMarks[i]
+      if (mark) {
+        const y = wy + titleH + pad + i * lineH
+        // fill+fill-opacity instead of rgba(): PPT's SVG renderer is shaky on rgba() (review M-6).
+        parts.push(
+          `<rect x="${n(wx)}" y="${n(y)}" width="${n(windowW)}" height="${n(lineH)}" fill="${MARK_SVG_COLORS[mark].fill}" fill-opacity="${MARK_SVG_COLORS[mark].opacity}"/>`
+        )
+      }
+    })
+  }
+
+  // --- line numbers ---
   if (style.lineNumbers !== 'off' && layout.lines.length > 0) {
     const numX = wx + pad + input.gutterWidth - GUTTER_GAP
     layout.lines.forEach((line, i) => {
       const y = wy + titleH + pad + i * lineH
       const mark = input.lineMarks[i]
-      if (mark) {
-        parts.push(
-          `<rect x="${n(wx)}" y="${n(y)}" width="${n(windowW)}" height="${n(lineH)}" fill="${esc(MARK_COLORS[mark].rowBg)}"/>`
-        )
-        parts.push(
-          `<text x="${n(numX)}" y="${n(y)}" text-anchor="end" fill="${esc(MARK_COLORS[mark].accent)}" fill-opacity="0.9" font-size="${style.fontSize}">${esc(String(lineNumberFor(line, style.lineNumbers)))}</text>`
-        )
-      } else {
-        parts.push(
-          `<text x="${n(numX)}" y="${n(y)}" text-anchor="end" fill="${esc(fg)}" fill-opacity="0.45" font-size="${style.fontSize}">${esc(String(lineNumberFor(line, style.lineNumbers)))}</text>`
-        )
-      }
+      const fill = mark ? MARK_COLORS[mark].accent : fg
+      const opacity = mark ? 0.9 : 0.45
+      parts.push(
+        `<text x="${n(numX)}" y="${n(y)}"${TOP_BASELINE} text-anchor="end" fill="${esc(fill)}" fill-opacity="${opacity}" font-size="${style.fontSize}">${esc(String(lineNumberFor(line, style.lineNumbers)))}</text>`
+      )
     })
   }
 
@@ -162,7 +181,7 @@ export function exportSvgString(input: CanvasExportInput): string {
       const italic = t.italic ? ' font-style="italic"' : ''
       const bold = t.bold ? ' font-weight="bold"' : ''
       parts.push(
-        `<text x="${n(x)}" y="${n(y)}" fill="${esc(t.color)}" font-size="${style.fontSize}"${italic}${bold} xml:space="preserve">${esc(t.text)}</text>`
+        `<text x="${n(x)}" y="${n(y)}"${TOP_BASELINE} fill="${esc(t.color)}" font-size="${style.fontSize}"${italic}${bold} xml:space="preserve">${esc(t.text)}</text>`
       )
       x += measureText(t.text, font)
     }
@@ -180,7 +199,7 @@ export function exportSvgString(input: CanvasExportInput): string {
       })
       for (const p of placements) {
         parts.push(
-          `<text x="${n(p.x)}" y="${n(p.y)}" text-anchor="${p.align === 'left' ? 'start' : 'end'}" fill="${esc(paintAccent(paint))}" fill-opacity="${style.watermarkOpacity}" font-size="${style.watermarkFontSize}">${esc(text)}</text>`
+          `<text x="${n(p.x)}" y="${n(p.y)}"${TOP_BASELINE} text-anchor="${p.align === 'left' ? 'start' : 'end'}" fill="${esc(contrastOverlay(paintAccent(paint)))}" fill-opacity="${style.watermarkOpacity}" font-size="${style.watermarkFontSize}" xml:space="preserve">${esc(text)}</text>`
         )
       }
     }
