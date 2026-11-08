@@ -13,9 +13,11 @@ import {
   WINDOW_INNER_PAD,
   GUTTER_GAP,
   fontString,
+  fontBox,
   measureText,
 } from '../../src/core/geometry'
 import { MARK_COLORS, type LineMark } from '../../src/core/diff'
+import { applyMasksToLine, maskAsteriskText, type MaskRange } from '../../src/core/mask'
 import {
   contrastOverlay,
   gradientEndpoints,
@@ -38,6 +40,8 @@ export interface CanvasExportInput {
   windowTitle: string
   /** F7 diff marks; rows with a mark get the wash + gutter accent. */
   lineMarks: Record<number, LineMark>
+  /** F10 redaction ranges in layouted-line coordinates. */
+  masks: MaskRange[]
 }
 
 /** Render to a PNG dataURL. Synchronous, typically a few ms per 100 lines. */
@@ -172,15 +176,32 @@ export function exportCanvasPng(input: CanvasExportInput): string {
   // matching the DOM preview for Fira Code et al.
   ctx.font = baseFont
   const codeX = wx + pad + input.gutterWidth
+  // F10 block geometry: the DOM bar covers the font's content area (what an
+  // inline background paints), so reuse those exact metrics here.
+  const box = fontBox(baseFont)
+  const blockH = box.ascent + box.descent
+  const blockYOff = (lineH - blockH) / 2
   layout.lines.forEach((_, i) => {
     const y = wy + titleH + pad + i * lineH
     const tokens = highlight.lines[i]?.tokens ?? []
+    const lineMasks = input.masks.filter((m) => m.line === i)
+    const segments = applyMasksToLine(tokens, lineMasks)
     let x = codeX
-    for (const t of tokens) {
-      ctx.font = fontString(style, { italic: t.italic, bold: t.bold })
-      ctx.fillStyle = t.color
-      ctx.fillText(t.text, x, y)
-      x += measureText(t.text, ctx.font)
+    for (const seg of segments) {
+      const font = fontString(style, { italic: seg.italic, bold: seg.bold })
+      const w = measureText(seg.text, font)
+      if (seg.masked && style.maskStyle === 'block') {
+        ctx.fillStyle = fg
+        roundRect(ctx, x, y + blockYOff, w, blockH, 2)
+        ctx.fill()
+      } else {
+        ctx.font = font
+        ctx.fillStyle = seg.color
+        // Asterisk mode: draw the replacement but advance by the ORIGINAL
+        // width so the rest of the line never shifts.
+        ctx.fillText(seg.masked ? maskAsteriskText(w, font) : seg.text, x, y)
+      }
+      x += w
     }
   })
 

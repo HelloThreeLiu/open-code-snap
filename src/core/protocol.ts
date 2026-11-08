@@ -29,6 +29,9 @@ export interface SnippetRequest {
 /** Line number rendering mode (PRD F2.3). */
 export type LineNumbersMode = 'off' | 'relative' | 'real'
 
+/** Redaction visual style (PRD F10): solid bar or same-width asterisks. */
+export type MaskStyle = 'block' | 'asterisk'
+
 /** Stage backdrop kind (PRD F5). Solid = the pre-0.3 single-color behavior. */
 export type BackgroundType = 'solid' | 'gradient' | 'grid' | 'dots'
 
@@ -44,6 +47,8 @@ export interface StyleConfig {
   lineNumbers: LineNumbersMode
   /** Force a Shiki language id; empty = auto-detect from the document. */
   languageOverride: string
+  /** F10: how masked ranges render in all three paths. */
+  maskStyle: MaskStyle
   backgroundColor: string
   transparentBackground: boolean
   /** Backdrop kind; solid uses backgroundColor alone (PRD F5). */

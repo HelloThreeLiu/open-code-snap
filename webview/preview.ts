@@ -4,6 +4,7 @@ import type { HighlightResult } from '../src/core/highlight'
 import type { StyleConfig } from '../src/core/protocol'
 import { stageInsets, titleBarHeight, WINDOW_INNER_PAD, GUTTER_GAP, fontString, measureText } from '../src/core/geometry'
 import { MARK_COLORS, type LineMark } from '../src/core/diff'
+import { applyMasksToLine, maskAsteriskText, type MaskRange } from '../src/core/mask'
 import {
   contrastOverlay,
   cssPaintSizes,
@@ -50,6 +51,10 @@ export function renderPreview(
     gutterWidth: number
     /** F7 diff marks by line index; keys without a mark render normally. */
     lineMarks: Record<number, LineMark>
+    /** F10 redaction ranges in layouted-line coordinates. */
+    masks: MaskRange[]
+    /** Click on a masked segment removes its owning range (F10). */
+    onUnmask?: (lineIndex: number, start: number, end: number) => void
     /** Click on a line number cycles its mark (F7). */
     onToggleMark?: (lineIndex: number) => void
     /** Live title sync while typing (no rerender; keeps exports fresh). */
@@ -102,9 +107,19 @@ export function renderPreview(
     code.appendChild(empty)
   } else {
     layout.lines.forEach((line, i) => {
+      const lineMasks = input.masks.filter((m) => m.line === i)
       code.appendChild(
-        buildLine(line, highlight.lines[i], style, highlight.colors.fg, gutterWidth, input.lineMarks[i], () =>
-          input.onToggleMark?.(i)
+        buildLine(
+          line,
+          i,
+          highlight.lines[i],
+          style,
+          highlight.colors.fg,
+          gutterWidth,
+          input.lineMarks[i],
+          lineMasks,
+          () => input.onToggleMark?.(i),
+          input.onUnmask
         )
       )
     })
@@ -231,15 +246,20 @@ function buildTitleBar(
 
 function buildLine(
   line: LayoutedLine,
+  lineIndex: number,
   themed: { tokens: { text: string; color: string; italic: boolean; bold: boolean }[] } | undefined,
   style: StyleConfig,
   fg: string,
   gutterW: number,
   mark: LineMark | undefined,
-  onToggle: () => void
+  lineMasks: MaskRange[],
+  onToggle: () => void,
+  onUnmask?: (line: number, start: number, end: number) => void
 ): HTMLElement {
   const row = document.createElement('div')
   row.className = 'line'
+  // F10: lets selection→mask mapping resolve the line without DOM walking.
+  row.dataset.line = String(lineIndex)
   if (mark) {
     row.style.background = MARK_COLORS[mark].rowBg
   }
@@ -270,16 +290,38 @@ function buildLine(
   const lc = document.createElement('span')
   lc.className = 'lc'
   lc.style.whiteSpace = 'pre'
-  if (!themed || themed.tokens.length === 0) {
+  const segments = applyMasksToLine(themed?.tokens ?? [], lineMasks)
+  if (segments.length === 0) {
     // Blank line: keep the row height stable.
     lc.innerHTML = '&nbsp;'
   } else {
-    for (const t of themed.tokens) {
+    for (const seg of segments) {
       const span = document.createElement('span')
-      span.textContent = t.text
-      span.style.color = t.color
-      if (t.italic) span.style.fontStyle = 'italic'
-      if (t.bold) span.style.fontWeight = 'bold'
+      if (seg.masked) {
+        if (style.maskStyle === 'asterisk') {
+          const font = fontString(style, { italic: seg.italic, bold: seg.bold })
+          span.textContent = maskAsteriskText(measureText(seg.text, font), font)
+          span.style.color = seg.color
+        } else {
+          // Block: keep the original text (the width stays exact) and hide
+          // it under an opaque bar in the theme foreground.
+          span.textContent = seg.text
+          span.style.background = fg
+          span.classList.add('mask-block')
+        }
+        // Original coordinates, so selection mapping survives re-masked text.
+        span.dataset.col = String(seg.start)
+        span.dataset.end = String(seg.end)
+        span.title = '点击取消遮罩'
+        span.addEventListener('click', () => onUnmask?.(lineIndex, seg.start, seg.end))
+      } else {
+        span.textContent = seg.text
+        span.style.color = seg.color
+        if (seg.italic) span.style.fontStyle = 'italic'
+        if (seg.bold) span.style.fontWeight = 'bold'
+        span.dataset.col = String(seg.start)
+        span.dataset.end = String(seg.end)
+      }
       lc.appendChild(span)
     }
   }

@@ -11,9 +11,11 @@ import {
   WINDOW_INNER_PAD,
   GUTTER_GAP,
   fontString,
+  fontBox,
   measureText,
 } from '../../src/core/geometry'
 import { MARK_COLORS, MARK_SVG_COLORS } from '../../src/core/diff'
+import { applyMasksToLine, maskAsteriskText } from '../../src/core/mask'
 import {
   contrastOverlay,
   gradientEndpoints,
@@ -172,18 +174,35 @@ export function exportSvgString(input: CanvasExportInput): string {
 
   // --- code tokens: one <text> per token at the same x/y the canvas draws ---
   const codeX = wx + pad + input.gutterWidth
+  // F10 block geometry — same font-metrics numbers as canvas.ts.
+  const box = fontBox(baseFont)
+  const blockH = box.ascent + box.descent
+  const blockYOff = (lineH - blockH) / 2
   layout.lines.forEach((_, i) => {
     const y = wy + titleH + pad + i * lineH
     const tokens = highlight.lines[i]?.tokens ?? []
+    const lineMasks = input.masks.filter((m) => m.line === i)
+    const segments = applyMasksToLine(tokens, lineMasks)
     let x = codeX
-    for (const t of tokens) {
-      const font = fontString(style, { italic: t.italic, bold: t.bold })
-      const italic = t.italic ? ' font-style="italic"' : ''
-      const bold = t.bold ? ' font-weight="bold"' : ''
-      parts.push(
-        `<text x="${n(x)}" y="${n(y)}"${TOP_BASELINE} fill="${esc(t.color)}" font-size="${style.fontSize}"${italic}${bold} xml:space="preserve">${esc(t.text)}</text>`
-      )
-      x += measureText(t.text, font)
+    for (const seg of segments) {
+      const font = fontString(style, { italic: seg.italic, bold: seg.bold })
+      const w = measureText(seg.text, font)
+      if (seg.masked && style.maskStyle === 'block') {
+        // Security: the masked source text must NOT appear in the SVG at all
+        // — the block REPLACES it (covering would keep it recoverable).
+        parts.push(
+          `<rect x="${n(x)}" y="${n(y + blockYOff)}" width="${n(w)}" height="${n(blockH)}" rx="2" fill="${esc(fg)}"/>`
+        )
+      } else {
+        const text = seg.masked ? maskAsteriskText(w, font) : seg.text
+        const italic = seg.italic ? ' font-style="italic"' : ''
+        const bold = seg.bold ? ' font-weight="bold"' : ''
+        parts.push(
+          `<text x="${n(x)}" y="${n(y)}"${TOP_BASELINE} fill="${esc(seg.color)}" font-size="${style.fontSize}"${italic}${bold} xml:space="preserve">${esc(text)}</text>`
+        )
+      }
+      // Always advance by the ORIGINAL width (asterisks stay width-aligned).
+      x += w
     }
   })
 

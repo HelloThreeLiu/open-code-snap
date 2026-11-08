@@ -5,8 +5,9 @@ import { layoutCode, maxLineNumber, type LayoutedCode } from '../src/core/layout
 import { highlightCode, type HighlightResult } from '../src/core/highlight'
 import { resolveTheme, CURATED_THEMES } from '../src/core/theme-map'
 import { CURATED_LANGUAGES } from '../src/core/languages'
-import { gutterWidth, setMeasureTextImpl } from '../src/core/geometry'
+import { gutterWidth, setMeasureTextImpl, setMeasureFontBoxImpl } from '../src/core/geometry'
 import { nextMark, type LineMark } from '../src/core/diff'
+import { addMasks, maskContaining, removeMask, normalizeMasks, type MaskRange } from '../src/core/mask'
 import { renderPreview } from './preview'
 import { exportCanvasPng } from './export/canvas'
 import { exportSvgString } from './export/svg'
@@ -16,10 +17,28 @@ declare function acquireVsCodeApi(): { postMessage(msg: WebviewMessage): void }
 // Wire the DOM-backed text measurement into core geometry, which itself
 // stays DOM-free (hang-③): must run before any render/layout happens.
 let measureCtx: CanvasRenderingContext2D | null = null
-setMeasureTextImpl((text, font) => {
+function getMeasureCtx(): CanvasRenderingContext2D {
   if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d')!
-  measureCtx.font = font
-  return measureCtx.measureText(text).width
+  return measureCtx
+}
+setMeasureTextImpl((text, font) => {
+  const ctx = getMeasureCtx()
+  ctx.font = font
+  return ctx.measureText(text).width
+})
+// F10: font content-area metrics so mask blocks match the DOM inline box.
+setMeasureFontBoxImpl((font) => {
+  const ctx = getMeasureCtx()
+  ctx.font = font
+  const m = ctx.measureText('Xg')
+  const ascent = m.fontBoundingBoxAscent
+  const descent = m.fontBoundingBoxDescent
+  if (ascent == null || descent == null) {
+    // Older Chromium without font metrics: a typical monospace box.
+    const size = Number(/(\d+(?:\.\d+)?)px/.exec(font)?.[1] ?? 14)
+    return { ascent: size * 0.8, descent: size * 0.2 }
+  }
+  return { ascent, descent }
 })
 
 const vscode = acquireVsCodeApi()
@@ -35,6 +54,8 @@ interface State {
   lastDocKey: string
   /** F7 diff marks by layout line index; cleared on every new snapshot. */
   lineMarks: Record<number, LineMark>
+  /** F10 redaction ranges; session-level like lineMarks. */
+  masks: MaskRange[]
   /** F9 preset names pushed by the host. */
   presets: string[]
 }
@@ -46,6 +67,7 @@ const state: State = {
   titleOverride: null,
   lastDocKey: '',
   lineMarks: {},
+  masks: [],
   presets: [],
 }
 
@@ -58,6 +80,8 @@ interface RenderCache {
   windowTitle: string
   /** Same reference as state.lineMarks — exports must see live marks. */
   lineMarks: Record<number, LineMark>
+  /** F10 masks at render time; exports consume the same list. */
+  masks: MaskRange[]
 }
 
 let cache: RenderCache | null = null
@@ -204,6 +228,23 @@ function buildShell(): void {
     (v) => writeSetting('exportScale', Number(v))
   )
 
+  // F10: applies the last preview text selection as redaction masks. The
+  // selection is captured on `selectionchange` because mousedown on this
+  // button collapses it before the click lands.
+  const btnMask = document.createElement('button')
+  btnMask.id = 'btn-mask'
+  btnMask.textContent = '打码'
+  btnMask.title = '将预览中选中的文本替换为遮罩（F10）；点击遮罩可恢复'
+  btnMask.disabled = true
+  btnMask.addEventListener('click', () => {
+    if (pendingMasks.length === 0) return
+    state.masks = addMasks(state.masks, pendingMasks)
+    pendingMasks = []
+    btnMask.disabled = true
+    setStatus(`已打码 ${state.masks.length} 处（点击遮罩可恢复）`)
+    void rerender()
+  })
+
   const btnSave = document.createElement('button')
   btnSave.id = 'btn-save'
   btnSave.textContent = '保存 PNG'
@@ -220,7 +261,7 @@ function buildShell(): void {
   btnCopy.textContent = '复制到剪贴板'
   btnCopy.addEventListener('click', () => void exportImage('copy'))
 
-  row1.append(themeSelect, langSelect, lineNoSelect, windowSelect, transparentLabel, scaleSelect, btnSave, btnSaveSvg, btnCopy)
+  row1.append(themeSelect, langSelect, lineNoSelect, windowSelect, transparentLabel, scaleSelect, btnMask, btnSave, btnSaveSvg, btnCopy)
 
   // --- row 2: backdrop & watermark (F5/F6) ---
   const row2 = document.createElement('div')
@@ -319,6 +360,92 @@ function buildShell(): void {
   app.append(toolbar, previewWrap, statusbar, flash)
 }
 
+// ---------------------------------------------------------------- F10 masks
+
+/**
+ * Last preview text selection mapped to mask ranges. Kept across collapses
+ * so the toolbar button (whose mousedown kills the selection) still works.
+ */
+let pendingMasks: MaskRange[] = []
+
+/** Resolve the layouted line/col of a DOM selection boundary. */
+function locatePoint(node: Node, offset: number): { line: number; col: number } | null {
+  const row = (
+    node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement
+  )?.closest('.line') as HTMLElement | null
+  if (!row || row.dataset.line === undefined) return null
+  const lc = row.querySelector('.lc')
+  if (!lc || !lc.contains(node)) return null
+  const line = Number(row.dataset.line)
+  if (node.nodeType === Node.TEXT_NODE) {
+    const span = node.parentElement?.closest<HTMLElement>('[data-col]')
+    if (!span || !lc.contains(span)) return null
+    return { line, col: Number(span.dataset.col) + offset }
+  }
+  // Element boundary: the child at `offset` marks the point; past the last
+  // child means the end of the line content.
+  const child = node.childNodes[offset]
+  if (!child) {
+    const self = (node as Element).closest?.<HTMLElement>('[data-end]')
+    if (self) return { line, col: Number(self.dataset.end) }
+    const spans = lc.querySelectorAll<HTMLElement>('[data-col]')
+    const last = spans[spans.length - 1]
+    return last ? { line, col: Number(last.dataset.end) } : null
+  }
+  const el = (child instanceof Element ? child : child.parentElement)?.closest<HTMLElement>(
+    '[data-col]'
+  )
+  if (!el || !lc.contains(el)) return null
+  return { line, col: Number(el.dataset.col) }
+}
+
+/** Map the current DOM selection to normalized mask ranges (F10). */
+function selectionToMasks(): MaskRange[] {
+  const sel = document.getSelection()
+  const lines = cache?.layout.lines
+  if (!sel || sel.isCollapsed || sel.rangeCount === 0 || !lines) return []
+  const out: MaskRange[] = []
+  for (let r = 0; r < sel.rangeCount; r++) {
+    const range = sel.getRangeAt(r)
+    const a = locatePoint(range.startContainer, range.startOffset)
+    const b = locatePoint(range.endContainer, range.endOffset)
+    if (!a || !b) continue
+    if (a.line === b.line) {
+      if (b.col > a.col) out.push({ line: a.line, start: a.col, end: b.col })
+      continue
+    }
+    // Range start always precedes its end in document order; middle lines
+    // are masked whole. Ranges are clamped to the layouted text (blank
+    // lines — the `&nbsp;` placeholder — drop out naturally).
+    const clamp = (line: number, start: number, end: number): void => {
+      const len = lines[line]?.text.length ?? 0
+      const capped = Math.min(end, len)
+      if (capped > start) out.push({ line, start, end: capped })
+    }
+    clamp(a.line, a.col, lines[a.line]?.text.length ?? 0)
+    for (let l = a.line + 1; l < b.line; l++) clamp(l, 0, lines[l]?.text.length ?? 0)
+    clamp(b.line, 0, b.col)
+  }
+  return normalizeMasks(out)
+}
+
+document.addEventListener('selectionchange', () => {
+  const btn = document.getElementById('btn-mask') as HTMLButtonElement | null
+  if (!btn) return
+  const ranges = selectionToMasks()
+  if (ranges.length > 0) {
+    pendingMasks = ranges
+    btn.disabled = false
+  } else if (!document.getSelection()?.isCollapsed) {
+    // A real (non-collapsed) selection that maps to nothing — in the title
+    // bar or toolbar — invalidates the stale pending ranges.
+    pendingMasks = []
+    btn.disabled = true
+  }
+  // Collapsed selection: keep pending — clicking the button collapses the
+  // selection first, and the click must still apply it.
+})
+
 // ---------------------------------------------------------------- rendering
 
 async function rerender(): Promise<void> {
@@ -351,6 +478,7 @@ async function rerender(): Promise<void> {
     themeId,
     windowTitle,
     lineMarks: state.lineMarks,
+    masks: state.masks,
   }
 
   const preview = document.getElementById('preview')!
@@ -361,6 +489,15 @@ async function rerender(): Promise<void> {
     windowTitle,
     gutterWidth: cache.gutterWidth,
     lineMarks: state.lineMarks,
+    masks: state.masks,
+    // F10: click on a masked segment restores its covered range.
+    onUnmask: (line, start, end) => {
+      const target = maskContaining(state.masks, line, start, end - start)
+      if (target) {
+        state.masks = removeMask(state.masks, target)
+        void rerender()
+      }
+    },
     // F7: cycle unmarked -> added -> removed on the line number.
     onToggleMark: (i) => {
       const next = nextMark(state.lineMarks[i])
@@ -563,9 +700,11 @@ window.addEventListener('message', ({ data }: MessageEvent<HostMessage>) => {
     }
     // F7 marks are per-snapshot: drop them only when the code itself changed —
     // a style-only push (theme, watermark…) re-sends the same request and
-    // must keep the user's marks (review M-5).
+    // must keep the user's marks (review M-5). F10 masks follow the same
+    // session semantics.
     if (!state.request || state.request.code !== data.request.code) {
       state.lineMarks = {}
+      state.masks = []
     }
     state.request = data.request
     state.style = data.style

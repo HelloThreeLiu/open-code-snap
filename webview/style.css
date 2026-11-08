@@ -216,6 +216,14 @@ body {
   white-space: pre;
 }
 
+/* F10 block-style redaction: the bar covers the text (background color is
+   set inline from the theme foreground; radius is static). */
+.mask-block {
+  color: transparent;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
 .placeholder {
   opacity: 0.6;
   padding: 12px 0;

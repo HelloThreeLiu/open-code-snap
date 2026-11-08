@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { esc, exportSvgString } from '../webview/export/svg'
-import { setMeasureTextImpl } from '../src/core/geometry'
+import { setMeasureTextImpl, setMeasureFontBoxImpl } from '../src/core/geometry'
 import { layoutCode } from '../src/core/layout'
 import type { HighlightResult } from '../src/core/highlight'
 import { DEFAULT_STYLE } from '../src/core/model'
@@ -28,6 +28,7 @@ function makeInput(overrides: Partial<CanvasExportInput> = {}): CanvasExportInpu
     gutterWidth: 40,
     windowTitle: 'main.ts',
     lineMarks: {},
+    masks: [],
     ...overrides,
   }
 }
@@ -47,8 +48,15 @@ describe('esc (review M-3)', () => {
 })
 
 describe('exportSvgString', () => {
-  beforeEach(() => setMeasureTextImpl(stubMeasure))
-  afterEach(() => setMeasureTextImpl(null))
+  beforeEach(() => {
+    setMeasureTextImpl(stubMeasure)
+    // F10: deterministic font content-area (ascent 8 + descent 4 = 12px bar).
+    setMeasureFontBoxImpl(() => ({ ascent: 8, descent: 4 }))
+  })
+  afterEach(() => {
+    setMeasureTextImpl(null)
+    setMeasureFontBoxImpl(null)
+  })
 
   it('starts with an XML declaration and a proper svg root (review N-8)', () => {
     const svg = exportSvgString(makeInput())

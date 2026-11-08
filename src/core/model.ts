@@ -7,6 +7,7 @@ export const DEFAULT_STYLE: StyleConfig = {
   showWindowTitle: true,
   lineNumbers: 'relative',
   languageOverride: '',
+  maskStyle: 'block',
   backgroundColor: '#abb8c3',
   transparentBackground: false,
   backgroundType: 'solid',
@@ -83,6 +84,7 @@ export function readStyleFromConfig(
   s.showWindowTitle = get('showWindowTitle', true)
   s.lineNumbers = readLineNumbers(config)
   s.languageOverride = get('languageOverride', '')
+  s.maskStyle = get('maskStyle', DEFAULT_STYLE.maskStyle)
   s.backgroundColor = get('backgroundColor', DEFAULT_STYLE.backgroundColor)
   s.transparentBackground = get('transparentBackground', false)
   s.backgroundType = get('backgroundType', DEFAULT_STYLE.backgroundType)

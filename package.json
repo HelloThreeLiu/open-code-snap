@@ -88,6 +88,15 @@
           "default": "",
           "markdownDescription": "强制指定 Shiki 语言 id（如 `python`）。留空自动跟随文档语言"
         },
+        "openCodeSnap.maskStyle": {
+          "type": "string",
+          "enum": [
+            "block",
+            "asterisk"
+          ],
+          "default": "block",
+          "markdownDescription": "脱敏遮罩样式（F10）：`block` 色块 / `asterisk` 等宽星号（按原文本宽度对齐）。遮罩在预览中选中文字后点「打码」生成，点击遮罩可恢复"
+        },
         "openCodeSnap.backgroundColor": {
           "type": "string",
           "default": "#abb8c3",
