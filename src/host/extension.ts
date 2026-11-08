@@ -129,16 +129,14 @@ function showPanel(context: vscode.ExtensionContext): void {
         }
         break
       case 'deletePreset':
-        if (typeof msg.name === 'string' && msg.name.length <= 128) {
-          void deletePresetFlow(context, msg.name)
-        }
+        void deletePresetFlow(context).catch((err) => {
+          vscode.window.showErrorMessage(`Open Code Snap: 删除预设失败: ${String(err)}`)
+        })
         break
       case 'exportPreset':
-        if (typeof msg.name === 'string' && msg.name.length <= 128) {
-          void exportPresetFlow(context, msg.name).catch((err) => {
-            vscode.window.showErrorMessage(`Open Code Snap: 导出预设失败: ${String(err)}`)
-          })
-        }
+        void exportPresetFlow(context).catch((err) => {
+          vscode.window.showErrorMessage(`Open Code Snap: 导出预设失败: ${String(err)}`)
+        })
         break
       case 'importPreset':
         void importPresetFlow(context).catch((err) => {
@@ -477,7 +475,20 @@ async function applyPreset(context: vscode.ExtensionContext, name: string): Prom
   vscode.window.showInformationMessage(`Open Code Snap: 已应用预设「${name}」。`)
 }
 
-async function deletePresetFlow(context: vscode.ExtensionContext, name: string): Promise<void> {
+/** QuickPick over the stored names; null when the user cancelled or none exist. */
+async function pickPreset(context: vscode.ExtensionContext, title: string): Promise<string | null> {
+  const names = Object.keys(loadPresets(context)).sort()
+  if (names.length === 0) {
+    vscode.window.showInformationMessage('Open Code Snap: 还没有已保存的预设。')
+    return null
+  }
+  const picked = await vscode.window.showQuickPick(names, { title, placeHolder: '选择预设' })
+  return picked ?? null
+}
+
+async function deletePresetFlow(context: vscode.ExtensionContext): Promise<void> {
+  const name = await pickPreset(context, '删除预设')
+  if (name === null) return
   const presets = loadPresets(context)
   if (presets[name] === undefined) {
     pushPresets(context)
@@ -494,7 +505,9 @@ async function deletePresetFlow(context: vscode.ExtensionContext, name: string):
   vscode.window.showInformationMessage(`Open Code Snap: 预设「${name}」已删除。`)
 }
 
-async function exportPresetFlow(context: vscode.ExtensionContext, name: string): Promise<void> {
+async function exportPresetFlow(context: vscode.ExtensionContext): Promise<void> {
+  const name = await pickPreset(context, '导出预设')
+  if (name === null) return
   const raw = loadPresets(context)[name]
   if (raw === undefined) {
     vscode.window.showWarningMessage(`Open Code Snap: 预设「${name}」不存在，列表已刷新。`)

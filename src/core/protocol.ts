@@ -96,11 +96,11 @@ export type WebviewMessage =
   /** Persist a style knob to user settings (F4.2). Key/value pass the
    *  host-side whitelist in src/core/settings.ts before anything is written. */
   | { type: 'updateSetting'; key: string; value: unknown }
-  /** F9: preset management. The host owns storage (globalState) and names
-   *  come from showInputBox / file names there; values re-pass the whitelist
-   *  in src/core/presets.ts before anything is stored or applied. */
+  /** F9: preset management. The host owns storage (globalState); names come
+   *  from showInputBox / showQuickPick / file names there; values re-pass the
+   *  whitelist in src/core/presets.ts before anything is stored or applied. */
   | { type: 'savePreset' }
   | { type: 'applyPreset'; name: string }
-  | { type: 'deletePreset'; name: string }
-  | { type: 'exportPreset'; name: string }
+  | { type: 'deletePreset' }
+  | { type: 'exportPreset' }
   | { type: 'importPreset' }
