@@ -466,7 +466,8 @@ function exportSvgFile(): void {
     const svg = exportSvgString(cache)
     const ms = Math.round(performance.now() - t0)
     vscode.postMessage({ type: 'saveSvg', svg })
-    const kb = Math.round(svg.length / 1024)
+    // Blob size counts UTF-8 bytes; svg.length would overcount CJK titles.
+    const kb = Math.round(new Blob([svg]).size / 1024)
     setStatus(`已生成 SVG（矢量，${ms} ms，${kb} KB），请在弹出的保存对话框中选择位置`)
   } catch (err) {
     setStatus(`❌ SVG 导出失败: ${String(err)}`)
@@ -493,9 +494,12 @@ window.addEventListener('message', ({ data }: MessageEvent<HostMessage>) => {
       state.titleOverride = null
       state.lastDocKey = data.request.documentKey
     }
-    // Every update is a new snapshot: old line indices no longer map to the
-    // marked code, so F7 marks never leak across selections (plan §四).
-    state.lineMarks = {}
+    // F7 marks are per-snapshot: drop them only when the code itself changed —
+    // a style-only push (theme, watermark…) re-sends the same request and
+    // must keep the user's marks (review M-5).
+    if (!state.request || state.request.code !== data.request.code) {
+      state.lineMarks = {}
+    }
     state.request = data.request
     state.style = data.style
     state.themeContext = data.themeContext

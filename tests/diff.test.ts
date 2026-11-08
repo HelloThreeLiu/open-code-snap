@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MARK_COLORS, nextMark } from '../src/core/diff'
+import { MARK_COLORS, MARK_SVG_COLORS, nextMark } from '../src/core/diff'
 
 describe('nextMark (F7 click cycle)', () => {
   it('starts at added', () => {
@@ -23,10 +23,13 @@ describe('nextMark (F7 click cycle)', () => {
 })
 
 describe('MARK_COLORS palette', () => {
-  it('row washes are translucent, accents are opaque', () => {
-    for (const { rowBg, accent } of Object.values(MARK_COLORS)) {
-      expect(rowBg).toMatch(/rgba\(\d+, \d+, \d+, 0\.16\)/)
-      expect(accent).toMatch(/^rgb\(\d+, \d+, \d+\)$/)
-    }
+  it('row washes are translucent, accents are opaque (exact GitHub palette)', () => {
+    expect(MARK_COLORS.added).toEqual({ rowBg: 'rgba(63, 185, 80, 0.16)', accent: 'rgb(63, 185, 80)' })
+    expect(MARK_COLORS.removed).toEqual({ rowBg: 'rgba(248, 81, 73, 0.16)', accent: 'rgb(248, 81, 73)' })
+  })
+
+  it('SVG palette channels match the rgba() palette exactly (review M-6)', () => {
+    expect(MARK_SVG_COLORS.added).toEqual({ fill: '#3fb950', opacity: 0.16 })
+    expect(MARK_SVG_COLORS.removed).toEqual({ fill: '#f85149', opacity: 0.16 })
   })
 })

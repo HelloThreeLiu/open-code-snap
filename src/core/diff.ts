@@ -13,6 +13,15 @@ export const MARK_COLORS: Record<LineMark, { rowBg: string; accent: string }> = 
   removed: { rowBg: 'rgba(248, 81, 73, 0.16)', accent: 'rgb(248, 81, 73)' },
 }
 
+/**
+ * Same wash as fill+opacity for SVG: PPT's renderer is unreliable on rgba()
+ * fills (review M-6). Hex values match MARK_COLORS' rgb() channels exactly.
+ */
+export const MARK_SVG_COLORS: Record<LineMark, { fill: string; opacity: number }> = {
+  added: { fill: '#3fb950', opacity: 0.16 },
+  removed: { fill: '#f85149', opacity: 0.16 },
+}
+
 /** Click cycle on a line number: unmarked → added(+) → removed(−) → unmarked. */
 export function nextMark(current: LineMark | undefined): LineMark | undefined {
   if (!current) return 'added'
