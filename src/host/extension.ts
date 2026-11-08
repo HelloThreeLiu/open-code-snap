@@ -125,7 +125,9 @@ function showPanel(context: vscode.ExtensionContext): void {
         break
       case 'applyPreset':
         if (typeof msg.name === 'string' && msg.name.length <= 128) {
-          void applyPreset(context, msg.name)
+          void applyPreset(context, msg.name).catch((err) => {
+            vscode.window.showErrorMessage(`Open Code Snap: 应用预设失败: ${String(err)}`)
+          })
         }
         break
       case 'deletePreset':
@@ -408,7 +410,12 @@ async function saveSvg(context: vscode.ExtensionContext, svg: string): Promise<v
 // --- F9: preset management (host owns storage; values re-pass the whitelist) ---
 
 function loadPresets(context: vscode.ExtensionContext): Record<string, unknown> {
-  return context.globalState.get<Record<string, unknown>>(PRESETS_KEY, {}) ?? {}
+  // Null prototype: a preset literally named "__proto__" must be an own key,
+  // not a trigger for the prototype setter (review Major-3).
+  return Object.assign(
+    Object.create(null) as Record<string, unknown>,
+    context.globalState.get<Record<string, unknown>>(PRESETS_KEY, {}) ?? {}
+  )
 }
 
 function pushPresets(context: vscode.ExtensionContext): void {
@@ -456,13 +463,25 @@ async function applyPreset(context: vscode.ExtensionContext, name: string): Prom
     return
   }
   const config = vscode.workspace.getConfiguration('openCodeSnap')
+  let applied = 0
+  let failed = 0
+  let dropped = 0
   let overridden = 0
   for (const [key, value] of Object.entries(result.settings)) {
     // Defense in depth: sanitize already ran this whitelist, but every write
     // to user settings must prove itself again.
     const check = validateSettingUpdate(key, value)
-    if (!check.ok) continue
-    await config.update(key, check.value, vscode.ConfigurationTarget.Global)
+    if (!check.ok) {
+      dropped += 1
+      continue
+    }
+    try {
+      await config.update(key, check.value, vscode.ConfigurationTarget.Global)
+      applied += 1
+    } catch {
+      // No rollback for earlier keys, but the user must hear about it (M-2/M-8).
+      failed += 1
+    }
     const inspect = config.inspect(key)
     if (inspect && (inspect.workspaceValue !== undefined || inspect.workspaceFolderValue !== undefined)) {
       overridden += 1
@@ -472,7 +491,13 @@ async function applyPreset(context: vscode.ExtensionContext, name: string): Prom
     vscode.window.showWarningMessage(`Open Code Snap: ${overridden} 项样式被工作区设置覆盖，未完全生效。`)
   }
   pushCurrentState()
-  vscode.window.showInformationMessage(`Open Code Snap: 已应用预设「${name}」。`)
+  if (failed > 0 || dropped > 0) {
+    vscode.window.showWarningMessage(
+      `Open Code Snap: 预设「${name}」应用了 ${applied} 项${failed ? `，${failed} 项写入失败` : ''}${dropped ? `，${dropped} 项非法被忽略` : ''}。`
+    )
+  } else {
+    vscode.window.showInformationMessage(`Open Code Snap: 已应用预设「${name}」（${applied} 项）。`)
+  }
 }
 
 /** QuickPick over the stored names; null when the user cancelled or none exist. */
@@ -491,6 +516,7 @@ async function deletePresetFlow(context: vscode.ExtensionContext): Promise<void>
   if (name === null) return
   const presets = loadPresets(context)
   if (presets[name] === undefined) {
+    vscode.window.showWarningMessage(`Open Code Snap: 预设「${name}」不存在，列表已刷新。`)
     pushPresets(context)
     return
   }
@@ -516,7 +542,10 @@ async function exportPresetFlow(context: vscode.ExtensionContext): Promise<void>
   }
   const file = { version: 1 as const, name, settings: raw }
   const lastDir = context.globalState.get<string>('openCodeSnap.lastSaveDir')
-  const defaultUri = vscode.Uri.file(path.resolve(lastDir || homedir(), `${name}.json`))
+  // Preset names are free-form; strip filesystem-hostile characters and any
+  // leading path traversal before they reach the dialog default (review m-5).
+  const safe = name.replace(/[\\/:*?"<>|]/g, '_').replace(/^\.+/, '')
+  const defaultUri = vscode.Uri.file(path.resolve(lastDir || homedir(), `${safe}.json`))
   const uri = await vscode.window.showSaveDialog({ defaultUri, filters: { JSON: ['json'] } })
   if (!uri) return
   fs.writeFileSync(uri.fsPath, JSON.stringify(file, null, 2), 'utf8')
@@ -528,11 +557,13 @@ async function importPresetFlow(context: vscode.ExtensionContext): Promise<void>
   const uris = await vscode.window.showOpenDialog({ canSelectMany: false, filters: { JSON: ['json'] } })
   const uri = uris?.[0]
   if (!uri) return
-  const text = fs.readFileSync(uri.fsPath, 'utf8')
-  if (text.length > MAX_PRESET_JSON_CHARS) {
+  // Size-check before reading: a huge file should not enter memory at all.
+  const size = fs.statSync(uri.fsPath).size
+  if (size > MAX_PRESET_JSON_CHARS) {
     vscode.window.showErrorMessage('Open Code Snap: 预设文件过大，已拒绝导入。')
     return
   }
+  const text = fs.readFileSync(uri.fsPath, 'utf8')
   let raw: unknown
   try {
     raw = JSON.parse(text)
@@ -554,6 +585,10 @@ async function importPresetFlow(context: vscode.ExtensionContext): Promise<void>
   }
   const presets = loadPresets(context)
   const existed = presets[name] !== undefined
+  if (!existed && Object.keys(presets).length >= MAX_PRESETS) {
+    vscode.window.showWarningMessage(`Open Code Snap: 预设数量已达上限（${MAX_PRESETS}），请先删除部分预设。`)
+    return
+  }
   presets[name] = result.settings
   await writePresets(context, presets)
   vscode.window.showInformationMessage(
