@@ -15,6 +15,8 @@ const MAX_NOTIFY_CHARS = 2000
 /** base64 chars; 3x-scale 300-line exports are ~13M chars, so this leaves headroom. */
 const MAX_SAVE_IMAGE_CHARS = 32 * 1024 * 1024
 const PNG_DATAURL_PREFIX = 'data:image/png;base64,'
+/** F8: SVG source cap; 300-line exports are well under 1MB of text. */
+const MAX_SAVE_SVG_CHARS = 8 * 1024 * 1024
 
 let panel: vscode.WebviewPanel | undefined
 let selectionListener: vscode.Disposable | undefined
@@ -90,6 +92,18 @@ function showPanel(context: vscode.ExtensionContext): void {
           break
         }
         void saveImage(context, msg.dataURL)
+        break
+      }
+      case 'saveSvg': {
+        if (
+          typeof msg.svg !== 'string' ||
+          msg.svg.length > MAX_SAVE_SVG_CHARS ||
+          !(msg.svg.startsWith('<svg') || msg.svg.startsWith('<?xml'))
+        ) {
+          vscode.window.showErrorMessage('Open Code Snap: 拒绝了非法的 SVG 数据（未通过校验）。')
+          break
+        }
+        void saveSvg(context, msg.svg)
         break
       }
       case 'updateSetting':
@@ -333,6 +347,23 @@ async function saveImage(context: vscode.ExtensionContext, dataURL: string): Pro
   })
   if (!uri) return
   fs.writeFileSync(uri.fsPath, Buffer.from(base64, 'base64'))
+  context.globalState.update(key, path.dirname(uri.fsPath))
+  vscode.window.showInformationMessage(`Open Code Snap: saved ${path.basename(uri.fsPath)}`)
+}
+
+/** F8: persist the generated SVG next to the usual save flow. */
+async function saveSvg(context: vscode.ExtensionContext, svg: string): Promise<void> {
+  const key = 'openCodeSnap.lastSaveDir'
+  const lastDir = context.globalState.get<string>(key)
+  const defaultUri = vscode.Uri.file(
+    path.resolve(lastDir || path.join(homedir(), 'Desktop'), `code-${Date.now()}.svg`)
+  )
+  const uri = await vscode.window.showSaveDialog({
+    defaultUri,
+    filters: { 'SVG image': ['svg'] },
+  })
+  if (!uri) return
+  fs.writeFileSync(uri.fsPath, svg, 'utf8')
   context.globalState.update(key, path.dirname(uri.fsPath))
   vscode.window.showInformationMessage(`Open Code Snap: saved ${path.basename(uri.fsPath)}`)
 }

@@ -9,6 +9,7 @@ import { gutterWidth, setMeasureTextImpl } from '../src/core/geometry'
 import { nextMark, type LineMark } from '../src/core/diff'
 import { renderPreview } from './preview'
 import { exportCanvasPng } from './export/canvas'
+import { exportSvgString } from './export/svg'
 
 declare function acquireVsCodeApi(): { postMessage(msg: WebviewMessage): void }
 
@@ -205,12 +206,18 @@ function buildShell(): void {
   btnSave.textContent = '保存 PNG'
   btnSave.addEventListener('click', () => void exportImage('save'))
 
+  const btnSaveSvg = document.createElement('button')
+  btnSaveSvg.id = 'btn-save-svg'
+  btnSaveSvg.textContent = '保存 SVG'
+  btnSaveSvg.title = '矢量导出（F8）；缩放倍数不适用于 SVG'
+  btnSaveSvg.addEventListener('click', () => void exportSvgFile())
+
   const btnCopy = document.createElement('button')
   btnCopy.id = 'btn-copy'
   btnCopy.textContent = '复制到剪贴板'
   btnCopy.addEventListener('click', () => void exportImage('copy'))
 
-  row1.append(themeSelect, langSelect, lineNoSelect, windowSelect, transparentLabel, scaleSelect, btnSave, btnCopy)
+  row1.append(themeSelect, langSelect, lineNoSelect, windowSelect, transparentLabel, scaleSelect, btnSave, btnSaveSvg, btnCopy)
 
   // --- row 2: backdrop & watermark (F5/F6) ---
   const row2 = document.createElement('div')
@@ -448,6 +455,22 @@ async function exportImage(action: 'save' | 'copy'): Promise<void> {
   } catch (err) {
     setStatus(`❌ 导出失败: ${String(err)}`)
     vscode.postMessage({ type: 'notify', level: 'error', text: `Export failed: ${String(err)}` })
+  }
+}
+
+/** F8: generate the SVG source and hand it to the host for a save dialog. */
+function exportSvgFile(): void {
+  try {
+    if (!cache) throw new Error('nothing rendered yet')
+    const t0 = performance.now()
+    const svg = exportSvgString(cache)
+    const ms = Math.round(performance.now() - t0)
+    vscode.postMessage({ type: 'saveSvg', svg })
+    const kb = Math.round(svg.length / 1024)
+    setStatus(`已生成 SVG（矢量，${ms} ms，${kb} KB），请在弹出的保存对话框中选择位置`)
+  } catch (err) {
+    setStatus(`❌ SVG 导出失败: ${String(err)}`)
+    vscode.postMessage({ type: 'notify', level: 'error', text: `SVG export failed: ${String(err)}` })
   }
 }
 
