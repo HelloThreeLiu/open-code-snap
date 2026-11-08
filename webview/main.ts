@@ -35,6 +35,8 @@ interface State {
   lastDocKey: string
   /** F7 diff marks by layout line index; cleared on every new snapshot. */
   lineMarks: Record<number, LineMark>
+  /** F9 preset names pushed by the host. */
+  presets: string[]
 }
 
 const state: State = {
@@ -44,6 +46,7 @@ const state: State = {
   titleOverride: null,
   lastDocKey: '',
   lineMarks: {},
+  presets: [],
 }
 
 interface RenderCache {
@@ -265,7 +268,34 @@ function buildShell(): void {
     writeSetting('watermarkOpacity', v)
   )
 
-  row2.append(bgTypeSelect, gradA, gradB, gradAngle, toolbarSep(), wmText, wmPos, wmSize, wmOpacity)
+  // --- F9 presets: an action menu, always bounces back to the placeholder ---
+  const presetSelect = makeSelect('ctl-preset', 'Presets', [['', '预设']], () => {})
+  presetSelect.addEventListener('change', () => {
+    const v = presetSelect.value
+    presetSelect.value = ''
+    if (!v || v === '---') return
+    switch (v) {
+      case '__save__':
+        vscode.postMessage({ type: 'savePreset' })
+        break
+      case '__export__':
+        vscode.postMessage({ type: 'exportPreset' })
+        break
+      case '__import__':
+        vscode.postMessage({ type: 'importPreset' })
+        break
+      case '__delete__':
+        vscode.postMessage({ type: 'deletePreset' })
+        break
+      default:
+        if (v.startsWith('apply:')) {
+          vscode.postMessage({ type: 'applyPreset', name: v.slice('apply:'.length) })
+        }
+    }
+  })
+
+  row2.append(bgTypeSelect, gradA, gradB, gradAngle, toolbarSep(), wmText, wmPos, wmSize, wmOpacity, toolbarSep(), presetSelect)
+  rebuildPresetOptions()
 
   toolbar.append(row1, row2)
 
@@ -420,6 +450,43 @@ function syncToolbar(style: StyleConfig): void {
   wmOpacity.value = String(style.watermarkOpacity)
 }
 
+/** F9: rebuild the preset menu from the host-pushed name list. */
+function rebuildPresetOptions(): void {
+  const select = document.getElementById('ctl-preset') as HTMLSelectElement | null
+  if (!select) return
+  select.replaceChildren()
+  const placeholder = document.createElement('option')
+  placeholder.value = ''
+  placeholder.textContent = '预设'
+  select.appendChild(placeholder)
+  for (const name of state.presets) {
+    const opt = document.createElement('option')
+    // Prefixed value space: a preset literally named "__save__" or "---"
+    // must not collide with the action sentinels (review m-4).
+    opt.value = `apply:${name}`
+    opt.textContent = name
+    select.appendChild(opt)
+  }
+  if (state.presets.length > 0) {
+    const sep = document.createElement('option')
+    sep.value = '---'
+    sep.disabled = true
+    sep.textContent = '───'
+    select.appendChild(sep)
+  }
+  for (const [value, label] of [
+    ['__save__', '💾 保存当前为预设…'],
+    ['__export__', '📤 导出预设…'],
+    ['__import__', '📥 导入 JSON…'],
+    ['__delete__', '🗑 删除预设…'],
+  ] as const) {
+    const opt = document.createElement('option')
+    opt.value = value
+    opt.textContent = label
+    select.appendChild(opt)
+  }
+}
+
 function setStatus(text: string): void {
   const el = document.getElementById('status-text')
   if (el) el.textContent = text
@@ -506,6 +573,10 @@ window.addEventListener('message', ({ data }: MessageEvent<HostMessage>) => {
   } else if (data.type === 'style') {
     state.style = data.style
     state.themeContext = data.themeContext
+  } else if (data.type === 'presets') {
+    state.presets = data.names
+    rebuildPresetOptions()
+    return
   } else {
     return
   }

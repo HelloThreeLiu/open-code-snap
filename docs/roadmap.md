@@ -26,11 +26,15 @@ PRD §4.1 全部（F1~F4）。验收（详见 [checklist-m1.md](checklist-m1.md)
 
 > 过程要点：三批 PR（#2 写回通道+F1 / #3 样式旋钮 / release）均走分支→CI→独立审查→修复闭环；两次独立审查共 10 条发现全部闭环（含 gutter 行号宽度竞态、切 tab 过期快照等真缺陷）。主题映射新增 Noctis 近似层（用户日常主题）。
 
-## M2 — Beta（+2 周）
+## M2 — Beta（+2 周）✅ 已完成（2026-11-08）
 
 F5 渐变/网格背景、F6 水印、F7 行高亮 diff、F8 SVG 导出、F9 预设系统。
-- [ ] SVG 导出在浏览器/Figma/PowerPoint 三处打开验证
-- [ ] 预设导入导出往返一致
+- [x] SVG 导出在浏览器/Figma/PowerPoint 三处打开验证（2026-11-08 真机；PPT 不渲染 feDropShadow 阴影属已知限制）
+- [x] 预设导入导出往返一致（tests/presets.test.ts 单测断言）
+
+> 过程要点：清账先行（PR #5：6 项 M1 挂账闭环，dom-to-image 引擎移除、运行时依赖净减一 → 仅 shiki，ADR D7）→ PR #6（F5+F6+工具栏两行分组）→ PR #7（F7+F8，审查打回 2 Critical 全修复）→ PR #8（F9）。透明背景不渲染水印为设计语义（水印承载于背景层，用户确认）。
+
+已知限制（登记）：canvas PNG 体积约为 dom 引擎时代 2 倍（4406KB@300行，PNG 无质量参数，挂账②决策不投入）；SVG 阴影在 PPT 缺失；webview bundle 9.4MB（Shiki 全量语言内联，瘦身移至 M3 候选）。
 
 ## M3 — 1.0（+2 周）
 
