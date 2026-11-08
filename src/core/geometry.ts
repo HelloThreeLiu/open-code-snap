@@ -95,8 +95,12 @@ export function measureText(text: string, font: string): number {
   if (hit !== undefined) return hit
   const width = measureImpl(text, font)
   if (measureCacheCount >= MEASURE_CACHE_LIMIT) {
+    // Wholesale eviction; `perFont` may be one of the dropped maps, so
+    // rebuild it INSIDE the cache or this entry lands in an orphan (m-1).
     measureCache.clear()
     measureCacheCount = 0
+    perFont = new Map()
+    measureCache.set(font, perFont)
   }
   perFont.set(text, width)
   measureCacheCount++

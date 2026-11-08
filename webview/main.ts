@@ -5,11 +5,11 @@ import { layoutCode, maxLineNumber, type LayoutedCode } from '../src/core/layout
 import { highlightCode, type HighlightResult } from '../src/core/highlight'
 import { resolveTheme, CURATED_THEMES } from '../src/core/theme-map'
 import { CURATED_LANGUAGES } from '../src/core/languages'
-import { gutterWidth, setMeasureTextImpl, setMeasureFontBoxImpl, type ExportScale } from '../src/core/geometry'
+import { gutterWidth, setMeasureTextImpl, setMeasureFontBoxImpl } from '../src/core/geometry'
 import { nextMark, type LineMark } from '../src/core/diff'
 import { addMasks, maskContaining, removeMask, normalizeMasks, type MaskRange } from '../src/core/mask'
 import { renderPreview } from './preview'
-import { exportCanvasPng } from './export/canvas'
+import { exportCanvasPng, type CanvasExportResult } from './export/canvas'
 import { exportSvgString } from './export/svg'
 
 declare function acquireVsCodeApi(): {
@@ -705,7 +705,7 @@ function dataUrlToBlob(dataURL: string): Blob {
   return new Blob([bytes], { type: 'image/png' })
 }
 
-async function produceDataUrl(): Promise<{ dataURL: string; effectiveScale: ExportScale }> {
+async function produceDataUrl(): Promise<CanvasExportResult> {
   if (!cache) throw new Error('nothing rendered yet')
   return exportCanvasPng(cache)
 }
@@ -720,13 +720,15 @@ async function exportImage(action: 'save' | 'copy'): Promise<void> {
       cache && effectiveScale !== cache.style.exportScale
         ? `（${cache.style.exportScale}x 超出画布上限，已自动降为 ${effectiveScale}x）`
         : ''
+    // The split hint survives the export status too (review n-4).
+    const longNote = cache && cache.layout.lines.length > 1000 ? ' ⚠ 行数较多，建议分片导出' : ''
     if (action === 'save') {
       vscode.postMessage({ type: 'saveImage', dataURL })
-      setStatus(`已生成${scaleNote}，请在弹出的保存对话框中选择位置（${ms} ms）`)
+      setStatus(`已生成${scaleNote}${longNote}，请在弹出的保存对话框中选择位置（${ms} ms）`)
     } else {
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': dataUrlToBlob(dataURL) })])
       flashFx()
-      setStatus(`已复制到剪贴板${scaleNote}（${ms} ms，${Math.round((dataURL.length * 3) / 4 / 1024)} KB）——现在可去任意位置 Ctrl+V 粘贴`)
+      setStatus(`已复制到剪贴板${scaleNote}${longNote}（${ms} ms，${Math.round((dataURL.length * 3) / 4 / 1024)} KB）——现在可去任意位置 Ctrl+V 粘贴`)
     }
   } catch (err) {
     setStatus(`❌ 导出失败: ${String(err)}`)

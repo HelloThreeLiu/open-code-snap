@@ -54,6 +54,20 @@ describe('measureText injection', () => {
     setMeasureTextImpl(() => 16)
     expect(measureText('abc', 'f')).toBe(16)
   })
+
+  it('re-caches entries inserted right after an eviction (review m-1)', () => {
+    let calls = 0
+    setMeasureTextImpl((t) => {
+      calls++
+      return t.length
+    })
+    // Fill to exactly the limit, then trigger one eviction.
+    for (let i = 0; i < 8192; i++) measureText(`t${i}`, 'f')
+    expect(calls).toBe(8192)
+    expect(measureText('last', 'f')).toBe(4) // eviction here → 8193
+    expect(measureText('last', 'f')).toBe(4) // must be a cache hit, not 8194
+    expect(calls).toBe(8193)
+  })
 })
 
 describe('resolveCanvasScale (F11 Chromium caps)', () => {
@@ -63,9 +77,8 @@ describe('resolveCanvasScale (F11 Chromium caps)', () => {
   })
 
   it('steps down when the side cap (32767px) would be exceeded', () => {
-    // 2000 lines * 22.4px * 3x ≈ 134k px tall — clamp to 2x (89.6k? no: side cap)
-    const h = 14000 // 3x → 42000 > 32767; 2x → 28000 ✓
-    expect(resolveCanvasScale(800, h, 3)).toBe(2)
+    // 800×14000 @3x → side 42000 exceeds the cap → clamp to 2x (28000 ✓)
+    expect(resolveCanvasScale(800, 14000, 3)).toBe(2)
   })
 
   it('steps down when the area cap (2^28 px²) would be exceeded', () => {
@@ -77,6 +90,13 @@ describe('resolveCanvasScale (F11 Chromium caps)', () => {
 
   it('throws with the dimensions in the message when even 1x fails', () => {
     expect(() => resolveCanvasScale(40000, 400, 1)).toThrow(/40000/)
+  })
+
+  it('accepts values sitting exactly on the caps (review m-2)', () => {
+    expect(resolveCanvasScale(32767, 100, 1)).toBe(1) // side == cap
+    expect(resolveCanvasScale(16384, 16384, 1)).toBe(1) // area == 2^28
+    expect(() => resolveCanvasScale(32768, 100, 1)).toThrow() // side cap + 1
+    expect(() => resolveCanvasScale(16385, 16384, 1)).toThrow() // area cap + 1
   })
 
   it('exposes the documented caps', () => {
