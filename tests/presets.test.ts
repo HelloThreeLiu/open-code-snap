@@ -88,4 +88,22 @@ describe('serialize/sanitize round trip (roadmap M2 acceptance)', () => {
     const r = sanitizePreset(parsed)
     expect(r.ok && r.settings).toEqual({ ...DEFAULT_STYLE })
   })
+
+  it('preserves unicode/emoji content through the file round trip', () => {
+    const styled: StyleConfig = {
+      ...DEFAULT_STYLE,
+      watermarkText: '酷>@me 📸 "quoted"',
+      fontFamily: '"Cascadia Code", 等线, monospace',
+    }
+    const parsed = JSON.parse(JSON.stringify(serializePreset(styled)))
+    const r = sanitizePreset(parsed)
+    expect(r.ok && r.settings.watermarkText).toBe('酷>@me 📸 "quoted"')
+    expect(r.ok && r.settings.fontFamily).toBe('"Cascadia Code", 等线, monospace')
+  })
+
+  it('handles empty settings and all-invalid payloads', () => {
+    expect(sanitizePreset({ settings: {} })).toEqual({ ok: true, settings: {} })
+    const junk = sanitizePreset({ padding: 'no', fontSize: NaN, theme: 42 })
+    expect(junk.ok && junk.settings).toEqual({})
+  })
 })

@@ -288,7 +288,9 @@ function buildShell(): void {
         vscode.postMessage({ type: 'deletePreset' })
         break
       default:
-        vscode.postMessage({ type: 'applyPreset', name: v })
+        if (v.startsWith('apply:')) {
+          vscode.postMessage({ type: 'applyPreset', name: v.slice('apply:'.length) })
+        }
     }
   })
 
@@ -459,7 +461,9 @@ function rebuildPresetOptions(): void {
   select.appendChild(placeholder)
   for (const name of state.presets) {
     const opt = document.createElement('option')
-    opt.value = name
+    // Prefixed value space: a preset literally named "__save__" or "---"
+    // must not collide with the action sentinels (review m-4).
+    opt.value = `apply:${name}`
     opt.textContent = name
     select.appendChild(opt)
   }
