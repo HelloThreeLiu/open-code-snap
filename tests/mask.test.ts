@@ -197,6 +197,18 @@ describe('applyMasksToLine', () => {
       ['abc123', false],
     ])
   })
+
+  it('never splits a UTF-16 surrogate pair at a mask boundary (review m-2)', () => {
+    // '😀' occupies indexes 1 (high) and 2 (low).
+    const edge = applyMasksToLine([tok('a😀b')], [{ line: 0, start: 1, end: 2 }])
+    expect(edge.map((s) => s.text)).toEqual(['a', '😀', 'b'])
+    const covered = applyMasksToLine([tok('a😀b')], [{ line: 0, start: 0, end: 2 }])
+    expect(covered.map((s) => [s.text, s.masked])).toEqual([
+      ['a', true],
+      ['😀', true],
+      ['b', false],
+    ])
+  })
 })
 
 describe('maskAsteriskText', () => {

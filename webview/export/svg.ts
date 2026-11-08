@@ -39,6 +39,9 @@ import type { CanvasExportInput } from './canvas'
 export function esc(s: string): string {
   return s
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, '')
+    // Lone surrogates are invalid XML 1.0 too (review m-2): a mask boundary
+    // or any other path that halves a pair would break the whole file.
+    .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

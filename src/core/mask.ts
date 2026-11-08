@@ -103,6 +103,28 @@ export function applyMasksToLine(tokens: Token[], ranges: MaskRange[]): MaskedSe
       const isMasked = masked[offset + pos] === 1
       let end = pos + 1
       while (end < t.text.length && (masked[offset + end] === 1) === isMasked) end++
+      // Never cut between the halves of a UTF-16 surrogate pair (review m-2):
+      // a lone surrogate renders as U+FFFD in DOM/canvas and is INVALID XML
+      // in the SVG export. Fold one half over the boundary to keep pairs.
+      if (
+        end < t.text.length &&
+        end > pos + 1 &&
+        t.text.charCodeAt(end - 1) >= 0xd800 &&
+        t.text.charCodeAt(end - 1) <= 0xdbff &&
+        t.text.charCodeAt(end) >= 0xdc00 &&
+        t.text.charCodeAt(end) <= 0xdfff
+      ) {
+        end-- // pair moves wholly into the next segment
+      } else if (
+        end === pos + 1 &&
+        end < t.text.length &&
+        t.text.charCodeAt(end - 1) >= 0xd800 &&
+        t.text.charCodeAt(end - 1) <= 0xdbff &&
+        t.text.charCodeAt(end) >= 0xdc00 &&
+        t.text.charCodeAt(end) <= 0xdfff
+      ) {
+        end++ // boundary at the segment start: fold the pair in here
+      }
       out.push({
         text: t.text.slice(pos, end),
         color: t.color,

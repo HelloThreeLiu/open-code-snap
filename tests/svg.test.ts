@@ -45,6 +45,12 @@ describe('esc (review M-3)', () => {
   it('keeps tabs, newlines and printable text', () => {
     expect(esc('a\tb\nc — 中文')).toBe('a\tb\nc — 中文')
   })
+
+  it('drops lone surrogates but keeps valid pairs (review m-2)', () => {
+    expect(esc('a\uD800b\uDC00c')).toBe('abc')
+    expect(esc('a\uFFFEb')).toBe('ab')
+    expect(esc('a\u{1F600}b')).toBe('a\u{1F600}b')
+  })
 })
 
 describe('exportSvgString', () => {
@@ -104,6 +110,42 @@ describe('exportSvgString', () => {
     expect(svg).toContain('fill="#3fb950" fill-opacity="0.16"')
     expect(svg).toContain('fill="#f85149" fill-opacity="0.16"')
     expect(svg).not.toContain('rgba(63, 185, 80')
+  })
+
+  it('never leaks masked source text into the SVG — block mode (review m-1)', () => {
+    const secret = 'hunter2secret'
+    const source = `const pwd = "${secret}"`
+    const svg = exportSvgString(
+      makeInput({
+        layout: layoutCode(source, { tabSize: 4, startLine: 0 }),
+        highlight: {
+          lines: [{ tokens: [{ text: source, color: '#d4d4d4', italic: false, bold: false }] }],
+          colors: highlight.colors,
+        },
+        // 'const pwd = "' is 13 chars; the secret follows.
+        masks: [{ line: 0, start: 13, end: 13 + secret.length }],
+      })
+    )
+    expect(svg).not.toContain(secret)
+    expect(svg).toContain('<rect')
+  })
+
+  it('never leaks masked source text into the SVG — asterisk mode (review m-1)', () => {
+    const secret = 'hunter2secret'
+    const source = `const pwd = "${secret}"`
+    const svg = exportSvgString(
+      makeInput({
+        layout: layoutCode(source, { tabSize: 4, startLine: 0 }),
+        highlight: {
+          lines: [{ tokens: [{ text: source, color: '#d4d4d4', italic: false, bold: false }] }],
+          colors: highlight.colors,
+        },
+        masks: [{ line: 0, start: 13, end: 13 + secret.length }],
+        style: { ...DEFAULT_STYLE, maskStyle: 'asterisk' },
+      })
+    )
+    expect(svg).not.toContain(secret)
+    expect(svg).toMatch(/\*{5,}/)
   })
 
   it('stains the watermark with a contrast overlay, never the backdrop itself (review C-1)', () => {

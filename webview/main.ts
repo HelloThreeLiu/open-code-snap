@@ -238,10 +238,11 @@ function buildShell(): void {
   btnMask.disabled = true
   btnMask.addEventListener('click', () => {
     if (pendingMasks.length === 0) return
+    const before = state.masks.length
     state.masks = addMasks(state.masks, pendingMasks)
-    pendingMasks = []
-    btnMask.disabled = true
-    setStatus(`已打码 ${state.masks.length} 处（点击遮罩可恢复）`)
+    clearPendingMasks()
+    // Report THIS application's count, not the session total (review N-1).
+    setStatus(`已打码 ${state.masks.length - before} 处，共 ${state.masks.length} 处（点击遮罩可恢复）`)
     void rerender()
   })
 
@@ -368,6 +369,14 @@ function buildShell(): void {
  */
 let pendingMasks: MaskRange[] = []
 
+/** Drop the pending selection and disable the button (review M-1: the
+ *  pending ranges must die with the code they were measured against). */
+function clearPendingMasks(): void {
+  pendingMasks = []
+  const btn = document.getElementById('btn-mask') as HTMLButtonElement | null
+  if (btn) btn.disabled = true
+}
+
 /** Resolve the layouted line/col of a DOM selection boundary. */
 function locatePoint(node: Node, offset: number): { line: number; col: number } | null {
   const row = (
@@ -439,8 +448,7 @@ document.addEventListener('selectionchange', () => {
   } else if (!document.getSelection()?.isCollapsed) {
     // A real (non-collapsed) selection that maps to nothing — in the title
     // bar or toolbar — invalidates the stale pending ranges.
-    pendingMasks = []
-    btn.disabled = true
+    clearPendingMasks()
   }
   // Collapsed selection: keep pending — clicking the button collapses the
   // selection first, and the click must still apply it.
@@ -705,6 +713,9 @@ window.addEventListener('message', ({ data }: MessageEvent<HostMessage>) => {
     if (!state.request || state.request.code !== data.request.code) {
       state.lineMarks = {}
       state.masks = []
+      // Pending ranges were measured against the OLD layout — a stale click
+      // would mask wrong coordinates in the new code (review M-1).
+      clearPendingMasks()
     }
     state.request = data.request
     state.style = data.style
