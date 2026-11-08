@@ -10,8 +10,11 @@ export interface LanguageOption {
   label: string
 }
 
+/**
+ * The auto-detect entry ("自动识别"/"Auto-detect") is NOT listed here: it is
+ * a UI word, not a language name, so the webview prepends it localized (F12).
+ */
 export const CURATED_LANGUAGES: readonly LanguageOption[] = [
-  { id: '', label: '自动识别' },
   { id: 'typescript', label: 'TypeScript' },
   { id: 'javascript', label: 'JavaScript' },
   { id: 'python', label: 'Python' },

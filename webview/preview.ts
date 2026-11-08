@@ -5,6 +5,7 @@ import type { StyleConfig } from '../src/core/protocol'
 import { stageInsets, titleBarHeight, WINDOW_INNER_PAD, GUTTER_GAP, fontString, measureText } from '../src/core/geometry'
 import { MARK_COLORS, type LineMark } from '../src/core/diff'
 import { applyMasksToLine, maskAsteriskText, maskRuns, type MaskRange } from '../src/core/mask'
+import { t, type Locale } from '../src/core/i18n'
 import {
   contrastOverlay,
   cssPaintSizes,
@@ -53,6 +54,8 @@ export function renderPreview(
     lineMarks: Record<number, LineMark>
     /** F10 redaction ranges in layouted-line coordinates. */
     masks: MaskRange[]
+    /** F12: locale for the few user-visible strings rendered here. */
+    uiLocale: Locale
     /** Click on a masked segment removes its owning range (F10). */
     onUnmask?: (lineIndex: number, start: number, end: number) => void
     /** Click on a line number cycles its mark (F7). */
@@ -103,7 +106,7 @@ export function renderPreview(
   if (layout.lines.length === 0) {
     const empty = document.createElement('div')
     empty.className = 'placeholder'
-    empty.textContent = 'Select some code in the editor ✂️'
+    empty.textContent = t(input.uiLocale, 'status.empty')
     code.appendChild(empty)
   } else {
     layout.lines.forEach((line, i) => {
@@ -118,6 +121,7 @@ export function renderPreview(
           gutterWidth,
           input.lineMarks[i],
           lineMasks,
+          input.uiLocale,
           () => input.onToggleMark?.(i),
           input.onUnmask
         )
@@ -253,6 +257,7 @@ function buildLine(
   gutterW: number,
   mark: LineMark | undefined,
   lineMasks: MaskRange[],
+  uiLocale: Locale,
   onToggle: () => void,
   onUnmask?: (line: number, start: number, end: number) => void
 ): HTMLElement {
@@ -270,11 +275,11 @@ function buildLine(
     if (mark) {
       ln.style.color = MARK_COLORS[mark].accent
       ln.style.opacity = '0.9'
-      ln.title = '点击取消 +/− 标记'
+      ln.title = t(uiLocale, 'gutter.markRemove.title')
     } else {
       ln.style.color = fg
       ln.style.opacity = '0.45'
-      ln.title = '点击标记为新增(+)，再点为删除(−)'
+      ln.title = t(uiLocale, 'gutter.markAdd.title')
     }
     ln.style.display = 'inline-block'
     ln.style.width = `${gutterW - GUTTER_GAP}px`
@@ -326,7 +331,7 @@ function buildLine(
         // Original coordinates, so selection mapping survives re-masked text.
         span.dataset.col = String(seg.start)
         span.dataset.end = String(seg.end)
-        span.title = '点击取消遮罩'
+        span.title = t(uiLocale, 'mask.unmask.title')
         span.addEventListener('click', () => onUnmask?.(lineIndex, seg.start, seg.end))
       } else {
         span.textContent = seg.text

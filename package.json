@@ -56,7 +56,7 @@
         "openCodeSnap.theme": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Shiki 主题 id。留空则跟随当前 VS Code 主题（自动映射）。"
+          "markdownDescription": "%config.theme%"
         },
         "openCodeSnap.windowStyle": {
           "type": "string",
@@ -66,12 +66,12 @@
             "none"
           ],
           "default": "macos",
-          "description": "窗口样式：macOS 交通灯 / Windows 按钮 / 无"
+          "markdownDescription": "%config.windowStyle%"
         },
         "openCodeSnap.showWindowTitle": {
           "type": "boolean",
           "default": true,
-          "description": "显示窗口标题（文件名）"
+          "markdownDescription": "%config.showWindowTitle%"
         },
         "openCodeSnap.lineNumbers": {
           "type": "string",
@@ -81,12 +81,12 @@
             "real"
           ],
           "default": "relative",
-          "markdownDescription": "行号模式：`off` 关闭 / `relative` 从选区头计 1 / `real` 真实文档行号（按选区起始行）。旧配置 `showLineNumbers` / `realLineNumbers` 自动迁移"
+          "markdownDescription": "%config.lineNumbers%"
         },
         "openCodeSnap.languageOverride": {
           "type": "string",
           "default": "",
-          "markdownDescription": "强制指定 Shiki 语言 id（如 `python`）。留空自动跟随文档语言"
+          "markdownDescription": "%config.languageOverride%"
         },
         "openCodeSnap.maskStyle": {
           "type": "string",
@@ -95,17 +95,17 @@
             "asterisk"
           ],
           "default": "block",
-          "markdownDescription": "脱敏遮罩样式（F10）：`block` 色块 / `asterisk` 等宽星号（按原文本宽度对齐）。遮罩在预览中选中文字后点「打码」生成，点击遮罩可恢复"
+          "markdownDescription": "%config.maskStyle%"
         },
         "openCodeSnap.backgroundColor": {
           "type": "string",
           "default": "#abb8c3",
-          "description": "背景颜色"
+          "markdownDescription": "%config.backgroundColor%"
         },
         "openCodeSnap.transparentBackground": {
           "type": "boolean",
           "default": false,
-          "description": "透明背景（优先于一切背景样式）"
+          "markdownDescription": "%config.transparentBackground%"
         },
         "openCodeSnap.backgroundType": {
           "type": "string",
@@ -116,27 +116,27 @@
             "dots"
           ],
           "default": "solid",
-          "markdownDescription": "背景类型：`solid` 纯色（默认）/ `gradient` 双色渐变 / `grid` 网格 / `dots` 点阵。网格与点阵以背景颜色为底色"
+          "markdownDescription": "%config.backgroundType%"
         },
         "openCodeSnap.gradientColorA": {
           "type": "string",
           "default": "#7093FF",
-          "description": "渐变起始色（backgroundType = gradient 时生效）"
+          "markdownDescription": "%config.gradientColorA%"
         },
         "openCodeSnap.gradientColorB": {
           "type": "string",
           "default": "#B379F5",
-          "description": "渐变结束色（backgroundType = gradient 时生效）"
+          "markdownDescription": "%config.gradientColorB%"
         },
         "openCodeSnap.gradientAngle": {
           "type": "number",
           "default": 135,
-          "description": "渐变角度（度，CSS 语义：0 向上、90 向右，范围 0-360）"
+          "markdownDescription": "%config.gradientAngle%"
         },
         "openCodeSnap.watermarkText": {
           "type": "string",
           "default": "",
-          "markdownDescription": "水印文字，留空不显示。支持模板变量 `{date}`（本地日期）与 `{file}`（窗口标题）"
+          "markdownDescription": "%config.watermarkText%"
         },
         "openCodeSnap.watermarkPosition": {
           "type": "string",
@@ -148,72 +148,72 @@
             "tile"
           ],
           "default": "bottom-right",
-          "description": "水印位置：四角或平铺"
+          "markdownDescription": "%config.watermarkPosition%"
         },
         "openCodeSnap.watermarkFontSize": {
           "type": "number",
           "default": 14,
-          "description": "水印字号（px，范围 8-72）"
+          "markdownDescription": "%config.watermarkFontSize%"
         },
         "openCodeSnap.watermarkOpacity": {
           "type": "number",
           "default": 0.5,
-          "description": "水印透明度（0.05-1）"
+          "markdownDescription": "%config.watermarkOpacity%"
         },
         "openCodeSnap.padding": {
           "type": "number",
           "default": 32,
-          "description": "内边距（px）"
+          "markdownDescription": "%config.padding%"
         },
         "openCodeSnap.borderRadius": {
           "type": "number",
           "default": 8,
-          "description": "窗口圆角（px）"
+          "markdownDescription": "%config.borderRadius%"
         },
         "openCodeSnap.shadowColor": {
           "type": "string",
           "default": "rgba(0, 0, 0, 0.55)",
-          "description": "阴影颜色"
+          "markdownDescription": "%config.shadowColor%"
         },
         "openCodeSnap.shadowBlur": {
           "type": "number",
           "default": 68,
-          "description": "阴影模糊半径（px）"
+          "markdownDescription": "%config.shadowBlur%"
         },
         "openCodeSnap.shadowOffsetX": {
           "type": "number",
           "default": 0,
-          "description": "阴影水平偏移（px）"
+          "markdownDescription": "%config.shadowOffsetX%"
         },
         "openCodeSnap.shadowOffsetY": {
           "type": "number",
           "default": 20,
-          "description": "阴影垂直偏移（px）"
+          "markdownDescription": "%config.shadowOffsetY%"
         },
         "openCodeSnap.fontFamily": {
           "type": "string",
           "default": "",
-          "description": "字体。留空跟随编辑器字体（推荐，需系统已安装）"
+          "markdownDescription": "%config.fontFamily%"
         },
         "openCodeSnap.fontSize": {
           "type": "number",
           "default": 14,
-          "description": "字号（px）"
+          "markdownDescription": "%config.fontSize%"
         },
         "openCodeSnap.lineHeight": {
           "type": "number",
           "default": 1.6,
-          "description": "行高（倍数）"
+          "markdownDescription": "%config.lineHeight%"
         },
         "openCodeSnap.ligatures": {
           "type": "boolean",
           "default": true,
-          "description": "连字（跟随编辑器设置中的 fontLigatures）"
+          "markdownDescription": "%config.ligatures%"
         },
         "openCodeSnap.tabSize": {
           "type": "number",
           "default": 0,
-          "markdownDescription": "Tab 宽度。`0` 跟随文档的编辑器设置"
+          "markdownDescription": "%config.tabSize%"
         },
         "openCodeSnap.exportScale": {
           "type": "number",
@@ -223,7 +223,18 @@
             3
           ],
           "default": 2,
-          "description": "导出缩放倍数"
+          "markdownDescription": "%config.exportScale%"
+        },
+        "openCodeSnap.uiLanguage": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "zh",
+            "en"
+          ],
+          "default": "auto",
+          "markdownDescription": "%config.uiLanguage%",
+          "order": 0
         }
       }
     }

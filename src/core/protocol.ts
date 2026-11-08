@@ -2,6 +2,7 @@
  * Shared message protocol between the extension host and the webview.
  * Single source of truth for both sides.
  */
+import type { Locale } from './i18n'
 
 /** Code + editor context sent from the host. */
 export interface SnippetRequest {
@@ -80,6 +81,8 @@ export interface StyleConfig {
 export interface ThemeContext {
   /** Display name of the current workbench theme, when known. */
   editorThemeName: string
+  /** UI locale resolved by the host from `uiLanguage` + env language (F12). */
+  uiLocale: Locale
 }
 
 // --- host → webview ---
