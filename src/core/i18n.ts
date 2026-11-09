@@ -99,6 +99,10 @@ export const STRINGS = {
     zh: ' · 语言 {lang} 未收录，按纯文本高亮',
     en: ' · language {lang} not bundled, plain text',
   },
+  'status.themeUnbundled': {
+    zh: ' · 主题 {id} 未收录，已回退 {fallback}',
+    en: ' · theme {id} not bundled, fell back to {fallback}',
+  },
   'status.longHint': {
     zh: ' · ⚠ 行数较多，建议分片导出',
     en: ' · ⚠ many lines — consider splitting the selection',

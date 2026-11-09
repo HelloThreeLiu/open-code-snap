@@ -22,6 +22,13 @@ export const APPROX_ALIASES: Record<string, string> = {
   // Quiet Light: no longer in shiki's theme set (slim build, M3) — the
   // nearest warm light palette is Solarized Light.
   quietlight: 'solarized-light',
+  // Tokyo Night Storm: folded into the base tokyo-night palette in shiki
+  // 3.23 — close, but a distinct shade (approx, not exact).
+  tokyonightstorm: 'tokyo-night',
+  // Everforest has dark and light palettes; longest key wins, so the light
+  // variant maps to the light palette and the family default to dark.
+  everforestlight: 'everforest-light',
+  everforest: 'everforest-dark',
 }
 
 /** normalized editor theme name -> shiki theme id. Exported for tests. */
@@ -60,10 +67,6 @@ export const ALIASES: Record<string, string> = {
   nord: 'nord',
   synthwave84: 'synthwave-84',
   tokyonight: 'tokyo-night',
-  // "tokyonightstorm" (and other Tokyo Night variants) resolve via the
-  // longest-substring pass to "tokyo-night": shiki 3.23 no longer ships a
-  // separate storm palette.
-  everforest: 'everforest-dark',
   catppuccin: 'catppuccin-mocha',
   catppuccinmocha: 'catppuccin-mocha',
   catppuccinlatte: 'catppuccin-latte',
@@ -94,6 +97,12 @@ export function resolveTheme(editorThemeName: string): ResolvedTheme {
     return { id: FALLBACK_THEME, exact: false }
   }
   const normalized = normalizeThemeName(editorThemeName)
+  // Exact-name approximations come FIRST: "Tokyo Night Storm" must not be
+  // swallowed by the shorter "tokyonight" alias in the substring pass,
+  // which would label a distinct shade as an exact match (review M-2).
+  if (Object.prototype.hasOwnProperty.call(APPROX_ALIASES, normalized)) {
+    return { id: APPROX_ALIASES[normalized], exact: false, approx: true }
+  }
   if (Object.prototype.hasOwnProperty.call(ALIASES, normalized)) {
     return { id: ALIASES[normalized], exact: true }
   }

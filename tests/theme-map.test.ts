@@ -58,6 +58,33 @@ describe('resolveTheme', () => {
   it('never throws on empty name', () => {
     expect(resolveTheme('').id).toBe('github-dark')
   })
+
+  // --- M3 slim-build remappings (PR #13 review M-3) ---
+
+  it('maps Quiet Light to solarized-light as an approximation', () => {
+    // shiki 3.23 no longer ships quiet-light; the closest warm light palette.
+    const r = resolveTheme('Quiet Light')
+    expect(r.id).toBe('solarized-light')
+    expect(r.exact).toBe(false)
+    expect(r.approx).toBe(true)
+  })
+
+  it('maps Tokyo Night Storm to tokyo-night as an approximation', () => {
+    // The storm shade was folded into the base palette in shiki 3.23.
+    const r = resolveTheme('Tokyo Night Storm')
+    expect(r.id).toBe('tokyo-night')
+    expect(r.exact).toBe(false)
+    expect(r.approx).toBe(true)
+  })
+
+  it('maps Everforest variants to dark/light palettes as approximations', () => {
+    const dark = resolveTheme('Everforest')
+    expect(dark.id).toBe('everforest-dark')
+    expect(dark.approx).toBe(true)
+    const light = resolveTheme('Everforest Light')
+    expect(light.id).toBe('everforest-light')
+    expect(light.approx).toBe(true)
+  })
 })
 
 describe('CURATED_THEMES', () => {

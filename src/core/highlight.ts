@@ -1,6 +1,6 @@
 /**
- * Shiki-based highlighting (F12-slim build). Runs inside the webview and
- * loads grammars/themes statically — the 22 curated languages and the 20
+ * Shiki-based highlighting (slim build, M3). Runs inside the webview and
+ * loads grammars/themes statically — the 21 curated languages and the 18
  * themes reachable from theme-map replace the old full bundled registry,
  * which inlined EVERY grammar (~9.4MB bundle). The JavaScript regex engine
  * replaces oniguruma (no wasm → CSP drops 'wasm-unsafe-eval'). Repeated
@@ -48,6 +48,7 @@ import nord from 'shiki/themes/nord.mjs'
 import synthwave84 from 'shiki/themes/synthwave-84.mjs'
 import tokyoNight from 'shiki/themes/tokyo-night.mjs'
 import everforestDark from 'shiki/themes/everforest-dark.mjs'
+import everforestLight from 'shiki/themes/everforest-light.mjs'
 import catppuccinMocha from 'shiki/themes/catppuccin-mocha.mjs'
 import catppuccinLatte from 'shiki/themes/catppuccin-latte.mjs'
 import type { LayoutedCode } from './layout'
@@ -77,6 +78,11 @@ export interface HighlightResult {
    * instead (the webview surfaces a status note).
    */
   langFallback?: string
+  /**
+   * Requested theme id when it is not bundled and the fallback theme was
+   * used instead (the webview surfaces a status note — review M-1).
+   */
+  themeFallback?: string
 }
 
 /** Special "no language" mode; shiki core handles it without a grammar. */
@@ -128,6 +134,7 @@ export const THEME_IMPORTS: Record<string, unknown> = {
   'synthwave-84': synthwave84,
   'tokyo-night': tokyoNight,
   'everforest-dark': everforestDark,
+  'everforest-light': everforestLight,
   'catppuccin-mocha': catppuccinMocha,
   'catppuccin-latte': catppuccinLatte,
 }
@@ -149,29 +156,49 @@ export function normalizeLang(languageId: string): string {
 let highlighterPromise: Promise<HighlighterCore> | null = null
 const loadedLangs = new Set<string>()
 const loadedThemes = new Set<string>()
+/**
+ * In-flight grammar loads (review M-4): concurrent renders with the same
+ * new language must share ONE loadLanguage call, and `loadedLangs` only
+ * gains an entry after the load settles — registering before the await
+ * let a parallel render call codeToTokens on an unfinished language.
+ */
+const langJobs = new Map<string, Promise<void>>()
 
 const engine = createJavaScriptRegexEngine({ forgiving: true })
 
 async function getHighlighter(theme: string, lang: string): Promise<HighlighterCore> {
   if (!highlighterPromise) {
-    highlighterPromise = createHighlighterCore({
+    const promise = createHighlighterCore({
+      // Grammar modules export an ARRAY of LanguageRegistration; the extra
+      // nesting relies on shiki's resolveLangs() flattening one level —
+      // documented here so a shiki upgrade re-checks it (review N-2).
       themes: [THEME_IMPORTS[theme] as never],
       langs: lang === PLAIN_LANG ? [] : [LANG_GRAMMARS[lang] as never],
       engine,
     })
+    highlighterPromise = promise
+    const hl = await promise
     loadedLangs.add(lang)
     loadedThemes.add(theme)
-    return highlighterPromise
+    return hl
   }
   const hl = await highlighterPromise
   const jobs: Promise<unknown>[] = []
+  // loadTheme is idempotent, so a duplicate call in a concurrent race is
+  // harmless; themes switch rarely, unlike grammars below.
   if (!loadedThemes.has(theme)) {
-    jobs.push(hl.loadTheme(THEME_IMPORTS[theme] as never))
-    loadedThemes.add(theme)
+    jobs.push(hl.loadTheme(THEME_IMPORTS[theme] as never).then(() => loadedThemes.add(theme)))
   }
-  if (!loadedLangs.has(lang) && lang !== PLAIN_LANG) {
-    jobs.push(hl.loadLanguage(LANG_GRAMMARS[lang] as never))
-    loadedLangs.add(lang)
+  if (lang !== PLAIN_LANG && !loadedLangs.has(lang)) {
+    let job = langJobs.get(lang)
+    if (!job) {
+      job = hl.loadLanguage(LANG_GRAMMARS[lang] as never).then(() => {
+        loadedLangs.add(lang)
+        langJobs.delete(lang)
+      })
+      langJobs.set(lang, job)
+    }
+    jobs.push(job)
   }
   await Promise.all(jobs)
   return hl
@@ -192,7 +219,12 @@ export async function highlightCode(
   const lang = requested === PLAIN_LANG || KNOWN_LANG_IDS.has(requested) ? requested : PLAIN_LANG
   const theme = KNOWN_THEME_IDS.has(themeId) ? themeId : FALLBACK_THEME
 
-  const hl = await getHighlighter(theme, lang)
+  const hl = await getHighlighter(theme, lang).catch((err: unknown) => {
+    // A failed init/load must not wedge the panel for its lifetime (N-3):
+    // reset so the next render retries from scratch.
+    highlighterPromise = null
+    throw err
+  })
 
   const activeTheme = hl.getTheme(theme as never)
   const fallbackColor = activeTheme.fg || '#d4d4d4'
@@ -218,5 +250,6 @@ export async function highlightCode(
       type: activeTheme.type === 'light' ? 'light' : 'dark',
     },
     langFallback: lang === PLAIN_LANG && requested !== PLAIN_LANG ? languageId : undefined,
+    themeFallback: theme !== themeId ? themeId : undefined,
   }
 }
