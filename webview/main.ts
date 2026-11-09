@@ -8,6 +8,7 @@ import { CURATED_LANGUAGES } from '../src/core/languages'
 import { gutterWidth, setMeasureTextImpl, setMeasureFontBoxImpl } from '../src/core/geometry'
 import { nextMark, type LineMark } from '../src/core/diff'
 import { addMasks, maskContaining, removeMask, normalizeMasks, type MaskRange } from '../src/core/mask'
+import { t, type Locale } from '../src/core/i18n'
 import { renderPreview } from './preview'
 import { exportCanvasPng, type CanvasExportResult } from './export/canvas'
 import { exportSvgString } from './export/svg'
@@ -68,12 +69,24 @@ interface State {
 const state: State = {
   request: null,
   style: { ...DEFAULT_STYLE },
-  themeContext: { editorThemeName: '' },
+  themeContext: { editorThemeName: '', uiLocale: 'en' },
   titleOverride: null,
   lastDocKey: '',
   lineMarks: {},
   masks: [],
   presets: [],
+}
+
+/**
+ * F12: the locale the shell was BUILT with. Toolbar labels are baked into
+ * DOM at buildShell() time; a host push carrying a different locale rebuilds
+ * the shell (status strings re-translate on their own every render).
+ */
+let currentLocale: Locale = 'en'
+
+/** Convenience: translate against the current shell locale. */
+function tr(key: Parameters<typeof t>[1], params?: Record<string, string | number>): string {
+  return t(currentLocale, key, params)
 }
 
 interface RenderCache {
@@ -176,36 +189,36 @@ function buildShell(): void {
 
   const themeSelect = makeSelect(
     'ctl-theme',
-    'Theme',
-    [['', '跟随编辑器主题'], ...CURATED_THEMES.map((id) => [id, id] as const)],
+    tr('title.theme'),
+    [['', tr('theme.follow')], ...CURATED_THEMES.map((id) => [id, id] as const)],
     (v) => writeSetting('theme', v)
   )
 
   const langSelect = makeSelect(
     'ctl-lang',
-    'Language override',
-    CURATED_LANGUAGES.map(({ id, label }) => [id, label] as const),
+    tr('title.lang'),
+    [['', tr('lang.auto')], ...CURATED_LANGUAGES.map(({ id, label }) => [id, label] as const)],
     (v) => writeSetting('languageOverride', v)
   )
 
   const lineNoSelect = makeSelect(
     'ctl-lineno',
-    'Line numbers',
+    tr('title.lineno'),
     [
-      ['off', '无行号'],
-      ['relative', '相对行号'],
-      ['real', '真实行号'],
+      ['off', tr('lineno.off')],
+      ['relative', tr('lineno.relative')],
+      ['real', tr('lineno.real')],
     ],
     (v) => writeSetting('lineNumbers', v)
   )
 
   const windowSelect = makeSelect(
     'ctl-window',
-    'Window style',
+    tr('title.window'),
     [
-      ['macos', 'macOS 窗口'],
-      ['windows', 'Windows 窗口'],
-      ['none', '无窗口'],
+      ['macos', tr('window.macos')],
+      ['windows', tr('window.windows')],
+      ['none', tr('window.none')],
     ],
     (v) => writeSetting('windowStyle', v)
   )
@@ -214,17 +227,17 @@ function buildShell(): void {
   transparentLabel.id = 'ctl-transparent'
   const transparent = document.createElement('input')
   transparent.type = 'checkbox'
-  transparent.title = '透明背景'
+  transparent.title = tr('transparent.title')
   transparent.addEventListener('change', () => {
     writeSetting('transparentBackground', transparent.checked)
   })
   const transparentText = document.createElement('span')
-  transparentText.textContent = '透明'
+  transparentText.textContent = tr('transparent.label')
   transparentLabel.append(transparent, transparentText)
 
   const scaleSelect = makeSelect(
     'ctl-scale',
-    'Export scale',
+    tr('scale.title'),
     [
       ['1', '1x'],
       ['2', '2x'],
@@ -238,8 +251,8 @@ function buildShell(): void {
   // button collapses it before the click lands.
   const btnMask = document.createElement('button')
   btnMask.id = 'btn-mask'
-  btnMask.textContent = '打码'
-  btnMask.title = '将预览中选中的文本替换为遮罩（F10）；点击遮罩可恢复'
+  btnMask.textContent = tr('btn.mask')
+  btnMask.title = tr('title.mask')
   btnMask.disabled = true
   btnMask.addEventListener('click', () => {
     if (pendingMasks.length === 0) return
@@ -247,24 +260,24 @@ function buildShell(): void {
     state.masks = addMasks(state.masks, pendingMasks)
     clearPendingMasks()
     // Report THIS application's count, not the session total (review N-1).
-    setStatus(`已打码 ${state.masks.length - before} 处，共 ${state.masks.length} 处（点击遮罩可恢复）`)
+    setStatus(tr('status.masked', { n: state.masks.length - before, total: state.masks.length }))
     void rerender()
   })
 
   const btnSave = document.createElement('button')
   btnSave.id = 'btn-save'
-  btnSave.textContent = '保存 PNG'
+  btnSave.textContent = tr('btn.savePng')
   btnSave.addEventListener('click', () => void exportImage('save'))
 
   const btnSaveSvg = document.createElement('button')
   btnSaveSvg.id = 'btn-save-svg'
-  btnSaveSvg.textContent = '保存 SVG'
-  btnSaveSvg.title = '矢量导出（F8）；缩放倍数不适用于 SVG'
+  btnSaveSvg.textContent = tr('btn.saveSvg')
+  btnSaveSvg.title = tr('title.saveSvg')
   btnSaveSvg.addEventListener('click', () => void exportSvgFile())
 
   const btnCopy = document.createElement('button')
   btnCopy.id = 'btn-copy'
-  btnCopy.textContent = '复制到剪贴板'
+  btnCopy.textContent = tr('btn.copy')
   btnCopy.addEventListener('click', () => void exportImage('copy'))
 
   row1.append(themeSelect, langSelect, lineNoSelect, windowSelect, transparentLabel, scaleSelect, btnMask, btnSave, btnSaveSvg, btnCopy)
@@ -275,48 +288,48 @@ function buildShell(): void {
 
   const bgTypeSelect = makeSelect(
     'ctl-bgtype',
-    'Background type',
+    tr('title.bgtype'),
     [
-      ['solid', '纯色背景'],
-      ['gradient', '渐变背景'],
-      ['grid', '网格背景'],
-      ['dots', '点阵背景'],
+      ['solid', tr('bgtype.solid')],
+      ['gradient', tr('bgtype.gradient')],
+      ['grid', tr('bgtype.grid')],
+      ['dots', tr('bgtype.dots')],
     ],
     (v) => writeSetting('backgroundType', v)
   )
 
-  const gradA = makeColorInput('ctl-grad-a', '渐变起始色', (v) => writeSetting('gradientColorA', v))
-  const gradB = makeColorInput('ctl-grad-b', '渐变结束色', (v) => writeSetting('gradientColorB', v))
-  const gradAngle = makeNumberInput('ctl-grad-angle', '渐变角度（0-360）', 0, 360, 5, (v) =>
+  const gradA = makeColorInput('ctl-grad-a', tr('title.gradA'), (v) => writeSetting('gradientColorA', v))
+  const gradB = makeColorInput('ctl-grad-b', tr('title.gradB'), (v) => writeSetting('gradientColorB', v))
+  const gradAngle = makeNumberInput('ctl-grad-angle', tr('title.gradAngle'), 0, 360, 5, (v) =>
     writeSetting('gradientAngle', v)
   )
 
   const wmText = document.createElement('input')
   wmText.id = 'ctl-wm-text'
   wmText.type = 'text'
-  wmText.title = '水印文字（支持 {date} {file} 模板变量，留空不显示）'
-  wmText.placeholder = '水印，如 @me {date}'
+  wmText.title = tr('title.wmText')
+  wmText.placeholder = tr('wm.placeholder')
   wmText.addEventListener('change', () => writeSetting('watermarkText', wmText.value))
 
   const wmPos = makeSelect(
     'ctl-wm-pos',
-    'Watermark position',
+    tr('title.wmPos'),
     [
-      ['top-left', '水印：左上'],
-      ['top-right', '水印：右上'],
-      ['bottom-left', '水印：左下'],
-      ['bottom-right', '水印：右下'],
-      ['tile', '水印：平铺'],
+      ['top-left', tr('wmpos.topLeft')],
+      ['top-right', tr('wmpos.topRight')],
+      ['bottom-left', tr('wmpos.bottomLeft')],
+      ['bottom-right', tr('wmpos.bottomRight')],
+      ['tile', tr('wmpos.tile')],
     ],
     (v) => writeSetting('watermarkPosition', v)
   )
-  const wmSize = makeNumberInput('ctl-wm-size', '水印字号', 8, 72, 1, (v) => writeSetting('watermarkFontSize', v))
-  const wmOpacity = makeNumberInput('ctl-wm-opacity', '水印透明度', 0.05, 1, 0.05, (v) =>
+  const wmSize = makeNumberInput('ctl-wm-size', tr('title.wmSize'), 8, 72, 1, (v) => writeSetting('watermarkFontSize', v))
+  const wmOpacity = makeNumberInput('ctl-wm-opacity', tr('title.wmOpacity'), 0.05, 1, 0.05, (v) =>
     writeSetting('watermarkOpacity', v)
   )
 
   // --- F9 presets: an action menu, always bounces back to the placeholder ---
-  const presetSelect = makeSelect('ctl-preset', 'Presets', [['', '预设']], () => {})
+  const presetSelect = makeSelect('ctl-preset', tr('preset.placeholder'), [['', tr('preset.placeholder')]], () => {})
   presetSelect.addEventListener('change', () => {
     const v = presetSelect.value
     presetSelect.value = ''
@@ -356,7 +369,7 @@ function buildShell(): void {
   statusbar.id = 'statusbar'
   const status = document.createElement('span')
   status.id = 'status-text'
-  status.textContent = '等待代码选区…'
+  status.textContent = tr('status.waiting')
   statusbar.appendChild(status)
 
   const flash = document.createElement('div')
@@ -545,6 +558,7 @@ async function rerender(): Promise<void> {
     gutterWidth: cache.gutterWidth,
     lineMarks: state.lineMarks,
     masks: state.masks,
+    uiLocale: state.themeContext.uiLocale,
     // F10: click on a masked segment restores its covered range.
     onUnmask: (line, start, end) => {
       const target = maskContaining(state.masks, line, start, end - start)
@@ -574,23 +588,24 @@ async function rerender(): Promise<void> {
   })
 
   syncToolbar(style)
+  const locale = state.themeContext.uiLocale
   const themeNote = style.theme
     ? ''
     : resolved.exact
-      ? '（已匹配编辑器主题）'
+      ? t(locale, 'status.themeExact')
       : resolved.approx
-        ? `（近似映射：${state.themeContext.editorThemeName} → ${themeId}）`
-        : `（编辑器主题 "${state.themeContext.editorThemeName}" 未精确映射，已回退）`
+        ? t(locale, 'status.themeApprox', { editor: state.themeContext.editorThemeName, id: themeId })
+        : t(locale, 'status.themeFallback', { editor: state.themeContext.editorThemeName })
   // The mask count stays visible on EVERY status line: an export while the
   // counter is absent cannot silently ship unmasked secrets (F5 finding).
-  const maskNote = state.masks.length > 0 ? ` · ${state.masks.length} 处遮罩` : ''
+  const maskNote = state.masks.length > 0 ? t(locale, 'status.maskCount', { n: state.masks.length }) : ''
   // F11: past ~1000 lines exports slow down and canvases may clamp — hint at
   // splitting instead of failing the user later.
-  const longNote = layout.lines.length > 1000 ? ' · ⚠ 行数较多，建议分片导出' : ''
+  const longNote = layout.lines.length > 1000 ? t(locale, 'status.longHint') : ''
   setStatus(
     !state.request
-      ? '等待代码选区…'
-      : `${layout.lines.length} 行 · ${themeId}${themeNote}${longNote}${maskNote}`
+      ? t(locale, 'status.waiting')
+      : `${t(locale, 'status.lines', { n: layout.lines.length })} · ${themeId}${themeNote}${longNote}${maskNote}`
   )
   // Notify once per unmapped theme — every selection change re-renders and
   // must not spam the same fallback notice (review N-2).
@@ -602,7 +617,11 @@ async function rerender(): Promise<void> {
     lastFallbackNotified !== state.themeContext.editorThemeName
   ) {
     lastFallbackNotified = state.themeContext.editorThemeName
-    vscode.postMessage({ type: 'notify', level: 'info', text: `Open Code Snap: 编辑器主题 "${state.themeContext.editorThemeName}" 暂无精确映射，已回退到 ${resolved.id}。` })
+    vscode.postMessage({
+      type: 'notify',
+      level: 'info',
+      text: t(locale, 'notify.themeFallback', { editor: state.themeContext.editorThemeName, id: resolved.id }),
+    })
   }
   persistSession()
 }
@@ -661,7 +680,7 @@ function rebuildPresetOptions(): void {
   select.replaceChildren()
   const placeholder = document.createElement('option')
   placeholder.value = ''
-  placeholder.textContent = '预设'
+  placeholder.textContent = tr('preset.placeholder')
   select.appendChild(placeholder)
   for (const name of state.presets) {
     const opt = document.createElement('option')
@@ -675,18 +694,18 @@ function rebuildPresetOptions(): void {
     const sep = document.createElement('option')
     sep.value = '---'
     sep.disabled = true
-    sep.textContent = '───'
+    sep.textContent = tr('preset.sep')
     select.appendChild(sep)
   }
-  for (const [value, label] of [
-    ['__save__', '💾 保存当前为预设…'],
-    ['__export__', '📤 导出预设…'],
-    ['__import__', '📥 导入 JSON…'],
-    ['__delete__', '🗑 删除预设…'],
+  for (const [value, key] of [
+    ['__save__', 'preset.save'],
+    ['__export__', 'preset.export'],
+    ['__import__', 'preset.import'],
+    ['__delete__', 'preset.delete'],
   ] as const) {
     const opt = document.createElement('option')
     opt.value = value
-    opt.textContent = label
+    opt.textContent = tr(key)
     select.appendChild(opt)
   }
 }
@@ -718,21 +737,27 @@ async function exportImage(action: 'save' | 'copy'): Promise<void> {
     // F11: a clamped scale must be visible, not silent.
     const scaleNote =
       cache && effectiveScale !== cache.style.exportScale
-        ? `（${cache.style.exportScale}x 超出画布上限，已自动降为 ${effectiveScale}x）`
+        ? tr('status.scaleNote', { from: cache.style.exportScale, to: effectiveScale })
         : ''
     // The split hint survives the export status too (review n-4).
-    const longNote = cache && cache.layout.lines.length > 1000 ? ' ⚠ 行数较多，建议分片导出' : ''
+    const longNote = cache && cache.layout.lines.length > 1000 ? tr('status.longNote') : ''
     if (action === 'save') {
       vscode.postMessage({ type: 'saveImage', dataURL })
-      setStatus(`已生成${scaleNote}${longNote}，请在弹出的保存对话框中选择位置（${ms} ms）`)
+      setStatus(tr('status.saved', { note: scaleNote + longNote, ms }))
     } else {
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': dataUrlToBlob(dataURL) })])
       flashFx()
-      setStatus(`已复制到剪贴板${scaleNote}${longNote}（${ms} ms，${Math.round((dataURL.length * 3) / 4 / 1024)} KB）——现在可去任意位置 Ctrl+V 粘贴`)
+      setStatus(
+        tr('status.copied', {
+          note: scaleNote + longNote,
+          ms,
+          kb: Math.round((dataURL.length * 3) / 4 / 1024),
+        })
+      )
     }
   } catch (err) {
-    setStatus(`❌ 导出失败: ${String(err)}`)
-    vscode.postMessage({ type: 'notify', level: 'error', text: `Export failed: ${String(err)}` })
+    setStatus(tr('error.export', { err: String(err) }))
+    vscode.postMessage({ type: 'notify', level: 'error', text: tr('error.export', { err: String(err) }) })
   }
 }
 
@@ -746,10 +771,10 @@ function exportSvgFile(): void {
     vscode.postMessage({ type: 'saveSvg', svg })
     // Blob size counts UTF-8 bytes; svg.length would overcount CJK titles.
     const kb = Math.round(new Blob([svg]).size / 1024)
-    setStatus(`已生成 SVG（矢量，${ms} ms，${kb} KB），请在弹出的保存对话框中选择位置`)
+    setStatus(tr('status.savedSvg', { ms, kb }))
   } catch (err) {
-    setStatus(`❌ SVG 导出失败: ${String(err)}`)
-    vscode.postMessage({ type: 'notify', level: 'error', text: `SVG export failed: ${String(err)}` })
+    setStatus(tr('error.svgExport', { err: String(err) }))
+    vscode.postMessage({ type: 'notify', level: 'error', text: tr('error.svgExport', { err: String(err) }) })
   }
 }
 
@@ -766,6 +791,18 @@ function flashFx(): void {
 // ---------------------------------------------------------------- bootstrap
 
 window.addEventListener('message', ({ data }: MessageEvent<HostMessage>) => {
+  if (data.type === 'update' || data.type === 'style') {
+    // F12: a locale change must rebuild the shell — toolbar labels were
+    // baked into the DOM at build time.
+    if (data.themeContext.uiLocale !== currentLocale) {
+      currentLocale = data.themeContext.uiLocale
+      buildShell()
+      // buildShell resets the mask button; pending ranges survive a rebuild
+      // by design, so restore the enabled state (review N-1).
+      const btn = document.getElementById('btn-mask') as HTMLButtonElement | null
+      if (btn) btn.disabled = pendingMasks.length === 0
+    }
+  }
   if (data.type === 'update') {
     // A different source document invalidates the session title override.
     if (data.request.documentKey !== state.lastDocKey) {
@@ -801,8 +838,8 @@ window.addEventListener('message', ({ data }: MessageEvent<HostMessage>) => {
     return
   }
   rerender().catch((err) => {
-    setStatus(`❌ 渲染失败: ${String(err)}`)
-    vscode.postMessage({ type: 'notify', level: 'error', text: `Open Code Snap render error: ${String(err)}` })
+    setStatus(tr('error.render', { err: String(err) }))
+    vscode.postMessage({ type: 'notify', level: 'error', text: tr('error.render', { err: String(err) }) })
   })
 })
 

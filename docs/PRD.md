@@ -79,6 +79,11 @@
   - 决策：性能主项 = measureText 结果缓存（导出对每个 token 至少测宽两次，长文件重复 token 命中率高）；护栏 = Chromium 画布上限（边 ≤32767px、面积 ≤2^28px²）超限时自动降倍并在状态栏明示，降到 1x 仍超限则明确报错——禁止静默产出空白/裁切图。
   - 决策：分片提示阈值 1000 行，状态栏常驻提示（不阻塞导出）；SVG 无画布上限，不受此护栏影响（host 侧既有大小校验兜底）。
 - F12 界面 i18n（中/英）
+  - 决策：locale = `openCodeSnap.uiLanguage`（auto/zh/en，default auto）+ `vscode.env.language`；auto 下任何 zh 变体（zh-cn/zh-tw/…）映射到简体 zh 包，其余 en。uiLanguage 仅经 settings.json 修改（不占工具栏），故不进 webview 白名单；**不进 StyleConfig**（预设是样式快照，UI 语言不属于样式）。
+  - 决策：core/i18n.ts 纯 TS、locale 显式传参（无全局状态）；键位由 `keyof` 类型约束，双语言键与插值槽齐平由 tests/i18n.test.ts 强制。
+  - 决策：package.json 展示串走 VS Code NLS（package.nls.json = en 默认 + package.nls.zh-cn.json），英文成为国际默认口径。
+  - 决策：core 校验原因串（settings/presets）保持英文技术短语，由宿主嵌入本地化句框——core 不引入 locale 感知。
+  - 实现：webview 工具栏文案在构建时烘焙，locale 变化触发 shell 重建；状态栏/错误文案每次渲染即时翻译。
 - F13 发布 marketplace + GitHub Actions 自动化（lint/test/发版）
 
 ## 5. 性能预算

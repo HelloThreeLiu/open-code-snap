@@ -27,12 +27,14 @@ export function validatePresetName(name: string): string | null {
  */
 export function sanitizePreset(raw: unknown): { ok: true; settings: Partial<StyleConfig> } | { ok: false; reason: string } {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-    return { ok: false, reason: '预设必须是一个 JSON 对象' }
+    // Technical reason strings are English on purpose (core has no locale):
+    // hosts embed them into locale-framed sentences (review: F12 scope).
+    return { ok: false, reason: 'preset must be a JSON object' }
   }
   const record = raw as Record<string, unknown>
   const settings = record.settings ?? record
   if (typeof settings !== 'object' || settings === null || Array.isArray(settings)) {
-    return { ok: false, reason: '预设缺少 settings 对象' }
+    return { ok: false, reason: 'preset is missing the "settings" object' }
   }
   const out: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(settings as Record<string, unknown>)) {
