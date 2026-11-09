@@ -7,20 +7,25 @@
 const FALLBACK_THEME = 'github-dark'
 
 /**
- * Named-but-inexact mappings: editor themes Shiki does not bundle, mapped
- * to the closest bundled palette. The UI labels these "近似映射" instead
- * of claiming an exact match or silently eating the notice.
+ * Named-but-inexact mappings: editor themes whose exact palette is NOT in
+ * our slim theme imports, mapped to the closest available palette. The UI
+ * labels these "近似映射" instead of claiming an exact match or silently
+ * eating the notice.
  * Only list variants that DIFFER from the family default — the generic key
  * (e.g. "noctis") already catches every variant via substring matching.
  */
-const APPROX_ALIASES: Record<string, string> = {
+/** Named-but-inexact mappings (see docstring above). Exported for tests. */
+export const APPROX_ALIASES: Record<string, string> = {
   // Noctis family: dark blue-grey -> one-dark-pro; Lux is the light variant.
   noctis: 'one-dark-pro',
   noctislux: 'github-light',
+  // Quiet Light: no longer in shiki's theme set (slim build, M3) — the
+  // nearest warm light palette is Solarized Light.
+  quietlight: 'solarized-light',
 }
 
-/** normalized editor theme name -> shiki theme id */
-const ALIASES: Record<string, string> = {
+/** normalized editor theme name -> shiki theme id. Exported for tests. */
+export const ALIASES: Record<string, string> = {
   // VS Code built-ins
   defaultdark: 'dark-plus',
   defaultlight: 'light-plus',
@@ -33,7 +38,6 @@ const ALIASES: Record<string, string> = {
   solarizeddark: 'solarized-dark',
   solarlight: 'solarized-light',
   solarizedlight: 'solarized-light',
-  quietlight: 'quiet-light',
   dimmedmonokai: 'monokai', // close enough fallback
   // Legacy VS Code built-in theme names
   visualstudiodark: 'dark-plus',
@@ -56,8 +60,10 @@ const ALIASES: Record<string, string> = {
   nord: 'nord',
   synthwave84: 'synthwave-84',
   tokyonight: 'tokyo-night',
-  tokyonightstorm: 'tokyo-night-storm',
-  everforest: 'everforest',
+  // "tokyonightstorm" (and other Tokyo Night variants) resolve via the
+  // longest-substring pass to "tokyo-night": shiki 3.23 no longer ships a
+  // separate storm palette.
+  everforest: 'everforest-dark',
   catppuccin: 'catppuccin-mocha',
   catppuccinmocha: 'catppuccin-mocha',
   catppuccinlatte: 'catppuccin-latte',
@@ -128,3 +134,6 @@ export const CURATED_THEMES: string[] = [
   'catppuccin-mocha',
   'catppuccin-latte',
 ]
+// Note: CURATED never listed 'quiet-light' / 'tokyo-night-storm'; those ids
+// only appeared as theme-map resolution targets and are now approximated
+// (see APPROX_ALIASES and the tokyonight comment above).

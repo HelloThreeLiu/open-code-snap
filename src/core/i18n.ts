@@ -95,6 +95,10 @@ export const STRINGS = {
     en: ' (editor theme "{editor}" has no exact mapping; fell back)',
   },
   'status.maskCount': { zh: ' · {n} 处遮罩', en: ' · {n} masks' },
+  'status.langFallback': {
+    zh: ' · 语言 {lang} 未收录，按纯文本高亮',
+    en: ' · language {lang} not bundled, plain text',
+  },
   'status.longHint': {
     zh: ' · ⚠ 行数较多，建议分片导出',
     en: ' · ⚠ many lines — consider splitting the selection',
