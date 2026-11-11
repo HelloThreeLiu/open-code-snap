@@ -4,6 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/HelloThreeLiu/open-code-snap/actions/workflows/ci.yml/badge.svg)](https://github.com/HelloThreeLiu/open-code-snap/actions/workflows/ci.yml)
+[![GitHub Release](https://img.shields.io/github/v/tag/HelloThreeLiu/open-code-snap?label=release)](https://github.com/HelloThreeLiu/open-code-snap/releases)
 
 ## 为什么做这个
 
@@ -11,14 +12,28 @@ CodeSnap 市场现行版已闭源，Polacode 停更多年，VSCodeSnap 是 GPL �
 
 完整论证见 [docs/feasibility.md](docs/feasibility.md)。
 
-## 核心特性（M1 已交付）
+## 核心特性（1.0 全量交付）
+
+**导出与同步**
 
 - ✅ 选区实时同步到预览面板（**不污染剪贴板**），多编辑器切换跟随，`Ctrl+Alt+S` 快捷唤起
-- ✅ Shiki 高亮（VS Code 同源 TextMate 引擎），跟随当前主题（含 Noctis 等近似映射），可一键切换内置主题
-- ✅ Canvas 自绘导出（300 行 183ms），与预览像素级一致
-- ✅ 窗口样式 / 行号三态 / 背景 / 阴影 / 圆角 / 内边距 / 字体连字 / Tab 宽度全参数化
-- ✅ 面板改动即时写回 `settings.json`，重启不丢；语言可手动覆盖；窗口标题可编辑
-- 🔜 水印、行高亮 diff、渐变与网格背景、脱敏遮罩、SVG 矢量导出、配置预设分享
+- ✅ PNG（1x/2x/3x）与 SVG 矢量双格式导出，与预览像素级一致；300 行 189ms、1105 行 358ms
+- ✅ 复制到剪贴板 / 保存文件（记住上次目录）；超长代码自动降缩放并明示，>1000 行提示分片
+
+**样式与高亮**
+
+- ✅ Shiki 高亮（VS Code 同源 TextMate 语法），跟随当前主题（含近似映射），可切换 18 种内置主题
+- ✅ 背景：纯色 / 双色渐变 / 网格 / 点阵；窗口样式（macOS 交通灯 / Windows 按钮 / 无）与标题可编辑
+- ✅ 行号三态、字体连字、Tab 宽度、阴影（颜色/模糊/偏移）、圆角、内边距全参数化
+- ✅ 水印：文字模板（`{date}` `{file}`）、四角或平铺、字号透明度可调
+
+**效率**
+
+- ✅ 脱敏遮罩：预览中选中文本一键打码（色块 / 等宽星号），点击恢复，导出同步——SVG 中被遮文本不可还原
+- ✅ 行高亮 diff：点击行号循环 普通 → 新增(+) → 删除(−)
+- ✅ 配置预设：命名保存、跨会话保留、JSON 导出/导入分享给团队
+- ✅ 界面双语（中/英，跟随 VS Code 语言，`openCodeSnap.uiLanguage` 可强制）
+- ✅ 面板改动即时写回 `settings.json`，全部样式项可配置
 
 详见 [docs/PRD.md](docs/PRD.md)。
 
@@ -51,6 +66,28 @@ webview/      # 预览面板 UI（高亮、样式、导出）
 ```
 
 ## 版本历史
+
+### v1.0.0（2026-11-11）
+
+**全局**
+
+- M3（1.0）完成：PRD §4.3 功能项 F10~F13 全部交付并经实机验收。
+- webview bundle 从 9.46MB 瘦身到 2.75MB（-71%）：Shiki 改为细粒度导入（21 种精选语言 + 18 种主题），JavaScript 正则引擎取代 oniguruma wasm，CSP 随之移除 `wasm-unsafe-eval`（安全收紧）。
+- 界面双语（中/英）：跟随 VS Code 显示语言（`uiLanguage` 可强制），工具栏/状态栏/通知/预设流程全量覆盖；package.json 元数据经 NLS 双语化。
+- 发布流水线落地：push tag 自动跑门禁 → 打包 vsix → 创建 GitHub Release（资产上传）→ 配置 `VSCE_PAT` 后自动发布 Marketplace（PR #14）。
+
+**页面**
+
+- 脱敏遮罩（F10）：预览选中文本 → 「打码」一键遮蔽；色块 / 等宽星号（`maskStyle`）两种样式按宽度精确对齐；点击遮罩恢复；面板重载后存活；PNG/SVG 导出同步——SVG 源码中被遮文本直接替换，不可还原。
+- 长代码优化（F11）：文本测量缓存 + Chromium 画布上限护栏（超限自动降缩放并在状态栏明示）+ >1000 行分片提示；1105 行导出实测 358ms，300 行回归 189ms。
+- 主题映射对齐 shiki 3.23：Quiet Light → Solarized Light（近似）、Tokyo Night Storm → Tokyo Night（近似）、Everforest 区分暗/亮两型；近似映射均有状态栏标注。
+
+**修复**
+
+- 面板重载后遮罩静默丢失，导致「以为已脱敏」的导出把明文带进 SVG（PR #10 F5 真机发现，安全问题）。
+- 相邻遮罩块圆角豁口使单个遮罩呈碎条；过期选区在代码变化后仍可打码错位。
+- 文本测量缓存清空后条目写入孤立 Map；并发加载同一语言竞态；高亮器初始化失败永久卡死面板（PR #11/#13 审查发现）。
+- 「Tokyo Night Storm」等近似主题名被子串匹配抢先标成「精确映射」；i18n 改造遗漏的 6 处硬编码文案。
 
 ### v0.3.0（2026-11-08）
 

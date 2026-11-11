@@ -2,7 +2,7 @@
   "name": "open-code-snap",
   "displayName": "Open Code Snap",
   "description": "%extension.description%",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "publisher": "open-code-snap",
   "license": "MIT",
   "repository": {

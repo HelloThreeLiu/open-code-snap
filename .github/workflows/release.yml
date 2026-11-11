@@ -1,0 +1,76 @@
+name: Release
+
+# F13: tag-triggered release pipeline — run the full gate, package the
+# vsix, create the GitHub Release with the vsix as an asset, and publish
+# to the Marketplace ONLY when the VSCE_PAT secret is configured (the
+# publisher account is registered separately; without it the step skips).
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: 门禁 + 打包 + 发布
+    runs-on: ubuntu-latest
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: 安装依赖（npm ci，严格校验 lockfile）
+        run: npm ci
+
+      - name: 类型检查
+        run: npm run typecheck
+
+      - name: 单元测试
+        run: npm test
+
+      - name: 构建
+        run: npm run build
+
+      # CI 走官方 registry，audit 端点可用（本地镜像源需 --registry）
+      - name: 生产依赖漏洞审计
+        run: npm audit --omit=dev
+
+      - name: 打包（vsce，版本号取自 package.json）
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          npx -y @vscode/vsce package --no-dependencies -o "open-code-snap-${VERSION}.vsix"
+          echo "VSIX=open-code-snap-${VERSION}.vsix" >> "$GITHUB_ENV"
+
+      - name: 上传 vsix 产物（无论发布与否都留档）
+        uses: actions/upload-artifact@v4
+        with:
+          name: open-code-snap-vsix
+          path: ${{ env.VSIX }}
+          retention-days: 30
+
+      - name: 创建 GitHub Release（vsix 作为资产）
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag \
+            "$VSIX"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 发布到 VS Code Marketplace（仅当配置了 VSCE_PAT）
+        if: env.VSCE_PAT != ''
+        run: npx -y @vscode/vsce publish --no-dependencies
