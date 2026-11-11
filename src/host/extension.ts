@@ -236,9 +236,9 @@ function buildWebviewHtml(context: vscode.ExtensionContext, webview: vscode.Webv
     `img-src ${webview.cspSource} data: blob:`,
     `style-src ${webview.cspSource} 'unsafe-inline'`,
     `font-src ${webview.cspSource} data:`,
-    // 'wasm-unsafe-eval' is required by Shiki's oniguruma engine (WASM),
-    // and only permits WebAssembly compilation — not arbitrary eval.
-    `script-src 'nonce-${nonce}' 'wasm-unsafe-eval'`,
+    // No 'wasm-unsafe-eval' since the M3 slim build: the JavaScript regex
+    // engine replaced oniguruma, so nothing in the webview compiles wasm.
+    `script-src 'nonce-${nonce}'`,
   ].join('; ')
 
   return /* html */ `<!DOCTYPE html>

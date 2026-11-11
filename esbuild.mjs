@@ -24,6 +24,9 @@ const webviewOptions = {
   target: 'es2022',
   outfile: 'dist/webview.js',
   sourcemap: true,
+  // Production minify (M3 slim): grammars dominate the bundle; whitespace/
+  // identifier minification buys ~15% more on top of dropping the registry.
+  minify: true,
   logLevel: 'info',
 }
 

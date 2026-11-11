@@ -599,13 +599,19 @@ async function rerender(): Promise<void> {
   // The mask count stays visible on EVERY status line: an export while the
   // counter is absent cannot silently ship unmasked secrets (F5 finding).
   const maskNote = state.masks.length > 0 ? t(locale, 'status.maskCount', { n: state.masks.length }) : ''
+  // Slim build: an unbundled language degrades to plain text — say so.
+  const langNote = highlight.langFallback ? t(locale, 'status.langFallback', { lang: highlight.langFallback }) : ''
+  // Same policy for hand-set theme ids outside the slim imports (review M-1).
+  const themeUnbundledNote = highlight.themeFallback
+    ? t(locale, 'status.themeUnbundled', { id: highlight.themeFallback, fallback: themeId })
+    : ''
   // F11: past ~1000 lines exports slow down and canvases may clamp — hint at
   // splitting instead of failing the user later.
   const longNote = layout.lines.length > 1000 ? t(locale, 'status.longHint') : ''
   setStatus(
     !state.request
       ? t(locale, 'status.waiting')
-      : `${t(locale, 'status.lines', { n: layout.lines.length })} · ${themeId}${themeNote}${longNote}${maskNote}`
+      : `${t(locale, 'status.lines', { n: layout.lines.length })} · ${themeId}${themeNote}${themeUnbundledNote}${langNote}${longNote}${maskNote}`
   )
   // Notify once per unmapped theme — every selection change re-renders and
   // must not spam the same fallback notice (review N-2).
