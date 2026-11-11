@@ -36,14 +36,18 @@ F5 渐变/网格背景、F6 水印、F7 行高亮 diff、F8 SVG 导出、F9 预�
 
 已知限制（登记）：canvas PNG 体积约为 dom 引擎时代 2 倍（4406KB@300行，PNG 无质量参数，挂账②决策不投入）；SVG 阴影在 PPT 缺失；webview bundle 9.4MB（Shiki 全量语言内联，瘦身移至 M3 候选）。
 
-## M3 — 1.0（+2 周）
+## M3 — 1.0（+2 周）✅ 已完成（2026-11-11）
 
-F10 脱敏遮罩、F11 长代码优化、F12 i18n、F13 发布流水线。
+F10 脱敏遮罩、F11 长代码优化、F12 i18n、F13 发布流水线，外加 roadmap 挂账的 bundle 瘦身。
 - [x] F10 脱敏遮罩（PR #10：三渲染路径同步、SVG 替换防泄漏、跨面板重载恢复；F5 实测两轮真机发现全部闭环——重载泄漏与圆角豁口）
 - [x] F11 长代码优化（PR #11：measureText 缓存、画布尺寸护栏自动降倍、>1000 行分片提示）
 - [x] 1000 行导出 < 2s（实测 1105 行 **358 ms** @1x；2x/3x 触发边上限护栏自动降 1x 并明示——2026-11-08 真机）
-- [ ] F12 界面 i18n（中/英）
-- [ ] F13 marketplace 上架，CI 自动发版
+- [x] F12 界面 i18n 中/英（PR #12：全量文案 + package.nls 双语 + uiLanguage 配置；F5 双环境验收）
+- [x] webview bundle 瘦身（PR #13：9.46MB → 2.75MB，-71%；shiki 细粒度导入 + JS 正则引擎去 wasm + CSP 移除 wasm-unsafe-eval）
+- [x] F13 发布流水线（PR #14：release.yml tag 触发——门禁 → 打包 → GitHub Release 含 vsix 资产 → 配置 VSCE_PAT 后自动 publish）
+- [ ] marketplace 上架（流水线就绪；前置动作在维护者：注册 publisher 账号 + 配置仓库 secret `VSCE_PAT` 后，push tag 即自动发布）
+
+> 过程要点：五 PR 串行（#10→#14），每个 PR 均走分支→CI→独立审查→逐条修复闭环。审查共 13 条发现（1 Major F10 过期选区、1 Major F12 漏网文案×3、1 Major F13 映射断言缺失等）全部闭环；F5 真机实测抓到 4 个单测不可见的问题（重载泄漏/圆角豁口/shiki 3.23 主题集漂移/i18n 首帧），均已修复。瘦身后 vsix ~2.8MB（原 ~13MB）。
 
 ## 远期（不承诺）
 
